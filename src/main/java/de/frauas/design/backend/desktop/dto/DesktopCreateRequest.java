@@ -1,0 +1,33 @@
+package de.frauas.design.backend.desktop.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * Request DTO for POST /desktop.
+ * The Frontend sends { "description": "...", "groups": [{ "description": "..." }] }.
+ * "name" is optional — falls back to "description" when absent.
+ */
+@Data
+public class DesktopCreateRequest {
+
+    /** Optional — falls back to description when not provided. */
+    private String name;
+
+    /** Required */
+    @NotBlank
+    private String description;
+
+    /** Optional — cascade-create desktop sub-groups on creation. */
+    private List<SubGroupRequest> groups;
+
+    @Data
+    public static class SubGroupRequest {
+        private String name;
+        @NotBlank
+        private String description;
+    }
+}
+

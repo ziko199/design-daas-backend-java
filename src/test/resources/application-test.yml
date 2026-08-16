@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+app:
+  oauth2:
+    keys-dir: ./test-keys
+    issuer: http://localhost:8080
+    access-token-ttl-seconds: 3600
+    refresh-token-ttl-days: 30
+  mail:
+    enabled: false
+  rate-limiting:
+    enabled: false  # disable IP rate limiting in unit/integration tests
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true

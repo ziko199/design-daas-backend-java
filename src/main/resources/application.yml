@@ -40,7 +40,7 @@ app:
   oauth2:
     keys-dir: ${OAUTH_KEYS_DIR:./keys}
     issuer: ${OAUTH_ISSUER:http://localhost:8080}
-    access-token-ttl-seconds: ${OAUTH_ACCESS_TOKEN_TTL:3600}
+    access-token-ttl-seconds: ${OAUTH_ACCESS_TOKEN_TTL_SECONDS:3600}
     refresh-token-ttl-days: ${OAUTH_REFRESH_TOKEN_TTL_DAYS:30}
   mail:
     enabled: ${MAIL_ENABLED:false}

@@ -7,8 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * Application entry point.
  *
- * <p>{@code @EnableScheduling} activates the {@link de.frauas.design.backend.auth.TokenCleanupService}
- * scheduled job (SEC-M7).</p>
+ * <p>{@code @EnableScheduling} activates the {@link de.frauas.design.backend.auth.TokenCleanupService} scheduled job.</p>
  */
 @SpringBootApplication
 @EnableScheduling

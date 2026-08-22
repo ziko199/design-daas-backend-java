@@ -33,7 +33,6 @@ public class ArchitectureTest {
     static final ArchRule layerDependencies = layeredArchitecture()
             .consideringAllDependencies()
             .layer("Config")      .definedBy("de.frauas.design.backend.config..")
-            .layer("Auth")        .definedBy("de.frauas.design.backend.auth..")
             .layer("Controllers") .definedBy("de.frauas.design.backend..controller..")
             .layer("Services")    .definedBy("de.frauas.design.backend..service..")
             .layer("Repositories").definedBy("de.frauas.design.backend..repository..")
@@ -42,9 +41,9 @@ public class ArchitectureTest {
             .layer("Shared")      .definedBy("de.frauas.design.backend.shared..")
 
             .whereLayer("Controllers").mayNotBeAccessedByAnyLayer()
-            .whereLayer("Services")   .mayOnlyBeAccessedByLayers("Controllers", "Config", "Auth", "Services")
-            .whereLayer("Repositories").mayOnlyBeAccessedByLayers("Services", "Config", "Auth", "Controllers")
-            .whereLayer("Models")     .mayOnlyBeAccessedByLayers("Controllers", "Services", "Repositories", "Config", "Auth", "DTOs");
+            .whereLayer("Services")   .mayOnlyBeAccessedByLayers("Controllers", "Config", "Services")
+            .whereLayer("Repositories").mayOnlyBeAccessedByLayers("Services", "Config", "Controllers")
+            .whereLayer("Models")     .mayOnlyBeAccessedByLayers("Controllers", "Services", "Repositories", "Config", "DTOs");
 
     // -------------------------------------------------------------------------
     // Naming Conventions
@@ -77,24 +76,19 @@ public class ArchitectureTest {
     static final ArchRule servicesShouldResideInServicePackage =
             classes().that().areAnnotatedWith(Service.class)
                     .should().resideInAPackage("..service..")
-                    // Auth-scoped services (e.g. TokenCleanupService) live in the auth package by design
-                    .orShould().resideInAPackage("de.frauas.design.backend.auth..")
-                    .because("@Service beans must live in a service or auth package");
+                    .because("@Service beans must live in a service package");
 
     @ArchTest
     static final ArchRule repositoriesShouldResideInRepositoryPackage =
             classes().that().areAnnotatedWith(Repository.class)
                     .should().resideInAPackage("..repository..")
-                    // RefreshTokenRepository lives in auth package by design
-                    .orShould().resideInAPackage("de.frauas.design.backend.auth..")
-                    .because("@Repository beans must live in a repository or auth package");
+                    .because("@Repository beans must live in a repository package");
 
     @ArchTest
     static final ArchRule controllersShouldResideInControllerPackage =
             classes().that().areAnnotatedWith(RestController.class)
                     .should().resideInAPackage("..controller..")
-                    .orShould().resideInAPackage("de.frauas.design.backend.auth..")
-                    .because("@RestController beans must live in a controller or auth package");
+                    .because("@RestController beans must live in a controller package");
 
     // -------------------------------------------------------------------------
     // General Coding Rules

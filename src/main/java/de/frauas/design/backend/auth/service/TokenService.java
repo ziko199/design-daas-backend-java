@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Set;
 
 /**
  * Core business logic for the OAuth2 resource-owner password grant and refresh-token
@@ -133,15 +132,15 @@ public class TokenService {
         // Successful authentication — reset any lockout state
         accountLockoutService.resetOnSuccess(user);
 
-        // validate requested scopes against what this user role is authorized to receive.
+        // validate requested scope against what this user role is authorized to receive.
         // Prevents scope-escalation attacks (e.g. a regular user requesting scope=admin).
-        Set<String> scopes = scopeResolver.resolveAuthorizedScopes(user, scope);
+        String grantedScope = scopeResolver.resolveAuthorizedScope(user, scope);
 
-        String accessToken = tokenIssuer.issueAccessToken(user, scopes);
-        String newRefreshToken = tokenIssuer.createRefreshToken(user, scopes);
+        String accessToken = tokenIssuer.issueAccessToken(user, grantedScope);
+        String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
 
-        log.info("passwordGrant — issued token for user={} userId={} scopes={}", username, user.getId(), scopes);
-        return new TokenResponseDto(accessToken, BEARER_TOKEN_TYPE, newRefreshToken, scopes,
+        log.info("passwordGrant — issued token for user={} userId={} scope={}", username, user.getId(), grantedScope);
+        return new TokenResponseDto(accessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope,
                 tokenIssuer.getAccessTokenTtlSeconds());
     }
 
@@ -184,18 +183,18 @@ public class TokenService {
         }
 
         BaseUser user = userOpt.get();
-        Set<String> scopes = scopeResolver.parsePersistedScopes(refreshTokenEntity.getScopes());
+        String grantedScope = scopeResolver.parsePersistedScope(refreshTokenEntity.getScope());
 
         // Issue new access token
-        String newAccessToken = tokenIssuer.issueAccessToken(user, scopes);
+        String newAccessToken = tokenIssuer.issueAccessToken(user, grantedScope);
 
         // Rotate: create new refresh token, then revoke the old one
-        String newRefreshToken = tokenIssuer.createRefreshToken(user, scopes);
+        String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
         refreshTokenEntity.revokeAndReplace(newRefreshToken);
         refreshTokenRepository.save(refreshTokenEntity);
 
         log.info("refreshGrant — rotated token for user={} userId={}", user.getEmail(), user.getId());
-        return new TokenResponseDto(newAccessToken, BEARER_TOKEN_TYPE, newRefreshToken, scopes,
+        return new TokenResponseDto(newAccessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope,
                 tokenIssuer.getAccessTokenTtlSeconds());
     }
 }

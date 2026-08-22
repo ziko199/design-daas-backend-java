@@ -19,7 +19,6 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -64,7 +63,7 @@ public class TokenIssuer {
      * Builds a JWT with a unique {@code jti} claim, persists it to the
      * {@code access_tokens} table, and returns the compact token string.
      */
-    public String issueAccessToken(BaseUser user, Set<String> scopes) {
+    public String issueAccessToken(BaseUser user, String scope) {
         Instant now = Instant.now();
         String jti = UUID.randomUUID().toString();
 
@@ -76,7 +75,7 @@ public class TokenIssuer {
                 .expiresAt(now.plusSeconds(accessTokenTtlSeconds))
                 .claim("email", user.getEmail())
                 .claim("name", user.getName())
-                .claim("scope", String.join(" ", scopes))
+                .claim("scope", scope)
                 .build();
 
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).build();
@@ -86,7 +85,7 @@ public class TokenIssuer {
         AccessTokenEntity entity = new AccessTokenEntity();
         entity.setJti(jti);
         entity.setUserId(user.getId());
-        entity.setScopes(String.join(" ", scopes));
+        entity.setScope(scope);
         entity.setIssuedAt(now);
         entity.setExpiresAt(now.plusSeconds(accessTokenTtlSeconds));
         accessTokenRepository.save(entity);
@@ -99,7 +98,7 @@ public class TokenIssuer {
      * Generates a cryptographically secure refresh token (256-bit hex),
      * persists it, and returns the token string.
      */
-    public String createRefreshToken(BaseUser user, Set<String> scopes) {
+    public String createRefreshToken(BaseUser user, String scope) {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         String tokenValue = HexFormat.of().formatHex(bytes);
@@ -107,7 +106,7 @@ public class TokenIssuer {
         RefreshTokenEntity rt = new RefreshTokenEntity();
         rt.setTokenValue(tokenValue);
         rt.setUserId(user.getId());
-        rt.setScopes(String.join(" ", scopes));
+        rt.setScope(scope);
         rt.setCreatedAt(Instant.now());
         rt.setExpiresAt(Instant.now().plus(refreshTokenTtlDays, ChronoUnit.DAYS));
         refreshTokenRepository.save(rt);

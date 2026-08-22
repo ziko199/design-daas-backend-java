@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -81,22 +80,17 @@ public class SessionService {
             throw new UserDisabledException();
         }
 
-        List<String> scopes = parseScopeClaim(jwt);
-        log.info("getSession — session valid userId={} role={} scopes={}", userId, user.getRole(), scopes);
+        String scope = parseScopeClaim(jwt);
+        log.info("getSession — session valid userId={} role={} scope={}", userId, user.getRole(), scope);
         return new SessionInfoDto(userId, user.getName());
     }
 
     /**
-     * Parses the JWT's {@code scope} claim, which may be a space-delimited string or a list.
+     * Parses the JWT's {@code scope} claim (a single scope value, since each user has
+     * exactly one role).
      */
-    private List<String> parseScopeClaim(Jwt jwt) {
+    private String parseScopeClaim(Jwt jwt) {
         Object scopeClaim = jwt.getClaim("scope");
-        if (scopeClaim instanceof String s && !s.isBlank()) {
-            return List.of(s.split("\\s+"));
-        }
-        if (scopeClaim instanceof List<?> list) {
-            return list.stream().map(Object::toString).toList();
-        }
-        return List.of();
+        return scopeClaim == null ? null : scopeClaim.toString();
     }
 }

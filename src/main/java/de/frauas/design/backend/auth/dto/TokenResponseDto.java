@@ -1,9 +1,6 @@
 package de.frauas.design.backend.auth.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Set;
 
 /**
  * A successfully issued access/refresh token pair, returned by {@code TokenService}
@@ -17,29 +14,19 @@ import java.util.Set;
  *
  * <p>JSON field names follow the OAuth2 token-response convention (snake_case)
  * expected by the frontend and other API consumers, regardless of Java's camelCase
- * naming. {@code scopes} is kept internally as a {@link Set} for easy handling in
- * {@code TokenService}, but is exposed to clients as the single space-separated
- * {@code scope} field required by RFC 6749.</p>
+ * naming. Each user has exactly one role, so {@code scope} is always a single value
+ * (never a space-separated list).</p>
  *
  * @param accessToken       the signed JWT access token
  * @param tokenType         the token type, always {@code "Bearer"} per RFC 6749 §5.1
  * @param refreshToken      the opaque refresh token to redeem for a new pair later
- * @param scopes            the scopes actually granted (may be a subset of what was requested)
+ * @param scope             the single scope actually granted
  * @param expiresInSeconds  remaining lifetime of {@code accessToken}, in seconds
  */
 public record TokenResponseDto(
         @JsonProperty("access_token") String accessToken,
         @JsonProperty("token_type") String tokenType,
         @JsonProperty("refresh_token") String refreshToken,
-        @JsonIgnore Set<String> scopes,
+        @JsonProperty("scope") String scope,
         @JsonProperty("expires_in") long expiresInSeconds) {
-
-    /**
-     * The granted scopes as a single space-separated string, per RFC 6749 §3.3.
-     * This is what's actually serialized as the {@code scope} JSON field.
-     */
-    @JsonProperty("scope")
-    public String scope() {
-        return String.join(" ", scopes);
-    }
 }

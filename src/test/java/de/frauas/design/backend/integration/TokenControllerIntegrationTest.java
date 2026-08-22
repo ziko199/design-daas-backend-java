@@ -1,7 +1,7 @@
 package de.frauas.design.backend.integration;
 
-import de.frauas.design.backend.auth.AccessTokenRepository;
-import de.frauas.design.backend.auth.RefreshTokenRepository;
+import de.frauas.design.backend.auth.repository.AccessTokenRepository;
+import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.*;

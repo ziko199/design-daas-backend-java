@@ -1,5 +1,6 @@
-package de.frauas.design.backend.auth;
+package de.frauas.design.backend.auth.repository;
 
+import de.frauas.design.backend.auth.model.AccessTokenEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,9 @@ import java.util.Optional;
 @Repository
 public interface AccessTokenRepository extends JpaRepository<AccessTokenEntity, Long> {
 
-    /** Find by JWT ID claim — used for revocation checks in OAuth2SessionController. */
+    /**
+     * Find by JWT ID claim — used for revocation checks in TokenRevocationValidator / SessionService.
+     */
     Optional<AccessTokenEntity> findByJti(String jti);
 
     @Modifying

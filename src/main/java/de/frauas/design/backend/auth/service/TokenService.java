@@ -190,7 +190,7 @@ public class TokenService {
 
         // Rotate: create new refresh token, then revoke the old one
         String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
-        refreshTokenEntity.revokeAndReplace(newRefreshToken);
+        refreshTokenEntity.revoke();
         refreshTokenRepository.save(refreshTokenEntity);
 
         log.info("refreshGrant — rotated token for user={} userId={}", user.getEmail(), user.getId());

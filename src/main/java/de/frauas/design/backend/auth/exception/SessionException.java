@@ -16,10 +16,14 @@ import lombok.Getter;
 @Getter
 public abstract class SessionException extends RuntimeException {
 
-    /** HTTP status to respond with, e.g. 401. */
+    /**
+     * HTTP status to respond with, e.g. 401.
+     */
     private final int status;
 
-    /** Short machine-readable OAuth2-style error code, e.g. {@code "token_revoked"}. */
+    /**
+     * Short machine-readable OAuth2-style error code, e.g. {@code "token_revoked"}.
+     */
     private final String error;
 
     protected SessionException(int status, String error, String description) {

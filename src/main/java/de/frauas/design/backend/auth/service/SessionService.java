@@ -64,20 +64,17 @@ public class SessionService {
 
         // A missing jti is treated the same as an unknown/revoked token — every token issued
         // by TokenService always carries one, so its absence indicates a malformed or foreign token.
-        boolean revoked = jti == null || accessTokenRepository.findByJti(jti)
-                .map(AccessTokenEntity::isRevoked)
-                .orElse(true);
+        boolean revoked = jti == null || accessTokenRepository.findByJti(jti).map(AccessTokenEntity::isRevoked).orElse(true);
         if (revoked) {
             log.warn("getSession — token revoked or unknown jti={}", jti);
             throw new TokenRevokedException();
         }
 
         Integer userId = Integer.parseInt(Objects.requireNonNull(jwt.getSubject()));
-        BaseUser user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("getSession — no user found for token subject userId={}", userId);
-                    return new UserNotFoundException();
-                });
+        BaseUser user = userRepository.findById(userId).orElseThrow(() -> {
+            log.warn("getSession — no user found for token subject userId={}", userId);
+            return new UserNotFoundException();
+        });
 
         if (!user.isEnabled()) {
             log.warn("getSession — user disabled userId={}", userId);
@@ -89,7 +86,9 @@ public class SessionService {
         return new SessionInfoDto(userId, user.getName());
     }
 
-    /** Parses the JWT's {@code scope} claim, which may be a space-delimited string or a list. */
+    /**
+     * Parses the JWT's {@code scope} claim, which may be a space-delimited string or a list.
+     */
     private List<String> parseScopeClaim(Jwt jwt) {
         Object scopeClaim = jwt.getClaim("scope");
         if (scopeClaim instanceof String s && !s.isBlank()) {

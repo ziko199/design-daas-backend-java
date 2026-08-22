@@ -1,5 +1,7 @@
-package de.frauas.design.backend.auth;
+package de.frauas.design.backend.auth.service;
 
+import de.frauas.design.backend.auth.repository.AccessTokenRepository;
+import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

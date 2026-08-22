@@ -5,11 +5,20 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import de.frauas.design.backend.auth.repository.AccessTokenRepository;
+import de.frauas.design.backend.auth.service.TokenRevocationValidator;
+import de.frauas.design.backend.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -21,12 +30,13 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Provides the RSA JWK source, JwtEncoder and JwtDecoder beans used by
- * {@link de.frauas.design.backend.auth.TokenController} (issuance) and
+ * {@link de.frauas.design.backend.auth.service.TokenService} (issuance) and
  * {@link de.frauas.design.backend.config.SecurityConfig} (resource-server validation).
  *
  * <p>Spring Boot 4.x / Spring Security 7.x removed
@@ -34,12 +44,22 @@ import java.util.UUID;
  * The equivalent is now {@code NimbusJwtDecoder.withJwkSource(jwkSource).build()}
  * from the {@code spring-security-oauth2-jose} module (bundled with
  * {@code spring-boot-starter-oauth2-resource-server}).</p>
+ *
+ * <p>The decoder's validator chain combines Spring's default checks (expiry, not-before)
+ * with an issuer check (matching {@code app.oauth2.issuer}, the value {@code TokenIssuer}
+ * signs into every access token) and {@link TokenRevocationValidator}, so that every
+ * authenticated request — not just {@code GET /oauth2/user/session} — rejects revoked
+ * access tokens and tokens belonging to disabled/deleted users.</p>
  */
 @Configuration
+@Slf4j
 public class AuthorizationServerConfig {
 
     @Value("${app.oauth2.keys-dir:./keys}")
     private String keysDir;
+
+    @Value("${app.oauth2.issuer:http://localhost:8080}")
+    private String issuer;
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() throws Exception {
@@ -52,8 +72,17 @@ public class AuthorizationServerConfig {
      * the removed {@code OAuth2AuthorizationServerConfiguration.jwtDecoder()}.
      */
     @Bean
-    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
-        return NimbusJwtDecoder.withJwkSource(jwkSource).build();
+    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource,
+                                 AccessTokenRepository accessTokenRepository,
+                                 UserRepository userRepository) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(jwkSource).build();
+        OAuth2TokenValidator<Jwt> revocationValidator =
+                new TokenRevocationValidator(accessTokenRepository, userRepository);
+        OAuth2TokenValidator<Jwt> issuerValidator =
+                new JwtClaimValidator<>("iss", issuer::equals);
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                List.of(JwtValidators.createDefault(), issuerValidator, revocationValidator)));
+        return decoder;
     }
 
     @Bean
@@ -98,9 +127,8 @@ public class AuthorizationServerConfig {
         } catch (UnsupportedOperationException ignored) {
             // Non-POSIX filesystem (e.g. Windows dev environment) — skip silently
         } catch (Exception e) {
-            // Log but don't fail startup — use SLF4J, not System.err
-            org.slf4j.LoggerFactory.getLogger(AuthorizationServerConfig.class)
-                .warn("Could not set RSA key file permissions: {}", e.getMessage());
+            // Log but don't fail startup
+            log.warn("Could not set RSA key file permissions: {}", e.getMessage());
         }
     }
 }

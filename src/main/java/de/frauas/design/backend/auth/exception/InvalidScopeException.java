@@ -1,7 +1,7 @@
 package de.frauas.design.backend.auth.exception;
 
 /**
- * SEC-H5: the client requested a scope that its user role is not authorized to
+ * the client requested a scope that its user role is not authorized to
  * receive (scope-escalation attempt).
  */
 public class InvalidScopeException extends TokenGrantException {

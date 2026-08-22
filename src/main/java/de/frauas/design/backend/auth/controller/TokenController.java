@@ -1,6 +1,6 @@
 package de.frauas.design.backend.auth.controller;
 
-import de.frauas.design.backend.auth.dto.TokenGrantResultDto;
+import de.frauas.design.backend.auth.dto.TokenResponseDto;
 import de.frauas.design.backend.auth.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ public class TokenController {
             MediaType.APPLICATION_FORM_URLENCODED_VALUE,
             MediaType.APPLICATION_JSON_VALUE
     })
-    public ResponseEntity<TokenGrantResultDto> token(
+    public ResponseEntity<TokenResponseDto> token(
             @RequestParam("grant_type") String grantType,
             @RequestParam(value = "username", required = false) String username,
             @RequestParam(value = "password", required = false) String password,
@@ -55,7 +55,7 @@ public class TokenController {
 
         log.info("POST /oauth2/user/token — grant_type={}", grantType);
 
-        TokenGrantResultDto result = tokenService.grantToken(grantType, username, password, refreshToken, scope);
+        TokenResponseDto result = tokenService.grantToken(grantType, username, password, refreshToken, scope);
 
         log.info("POST /oauth2/user/token — grant_type={} succeeded", grantType);
 

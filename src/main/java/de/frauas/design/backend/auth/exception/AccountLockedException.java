@@ -1,7 +1,7 @@
 package de.frauas.design.backend.auth.exception;
 
 /**
- * SEC-H3: the account is temporarily locked after too many consecutive failed
+ * the account is temporarily locked after too many consecutive failed
  * login attempts.
  */
 public class AccountLockedException extends TokenGrantException {

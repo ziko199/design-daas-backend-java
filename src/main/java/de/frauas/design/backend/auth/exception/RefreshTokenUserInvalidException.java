@@ -2,7 +2,7 @@ package de.frauas.design.backend.auth.exception;
 
 /**
  * The user behind a refresh token no longer exists or has been disabled since the
- * token was issued (mirrors the PHP {@code VerifyingRefreshTokenGrant} behaviour).
+ * token was issued.
  */
 public class RefreshTokenUserInvalidException extends TokenGrantException {
     public RefreshTokenUserInvalidException() {

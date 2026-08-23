@@ -19,6 +19,13 @@ import java.util.Map;
 @RestControllerAdvice(assignableTypes = OAuth2SessionController.class)
 public class SessionExceptionHandler {
 
+    /**
+     * Converts a rejected session check into an OAuth2-style error response, e.g.
+     * {@code {"error": "token_revoked", "error_description": "..."}}.
+     *
+     * @param ex the exception carrying the HTTP status and OAuth2 error code
+     * @return an error response with the status/body defined by {@code ex}
+     */
     @ExceptionHandler(SessionException.class)
     public ResponseEntity<Map<String, Object>> handleSessionException(SessionException ex) {
         log.warn("GET /oauth2/user/session — rejected status={} error={}", ex.getStatus(), ex.getError());

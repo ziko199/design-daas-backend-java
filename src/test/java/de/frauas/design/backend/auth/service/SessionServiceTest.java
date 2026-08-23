@@ -1,6 +1,7 @@
 package de.frauas.design.backend.auth.service;
 
 import de.frauas.design.backend.auth.dto.SessionInfoDto;
+import de.frauas.design.backend.auth.exception.MissingTokenException;
 import de.frauas.design.backend.auth.exception.TokenRevokedException;
 import de.frauas.design.backend.auth.exception.UserDisabledException;
 import de.frauas.design.backend.auth.exception.UserNotFoundException;
@@ -140,5 +141,14 @@ class SessionServiceTest {
         assertThatThrownBy(() -> sessionService.getSession(jwt))
                 .isInstanceOf(TokenRevokedException.class);
         verifyNoInteractions(accessTokenRepository);
+    }
+
+    @Test
+    @DisplayName("throws MissingTokenException (401) — not NullPointerException — when jwt is null")
+    void nullJwt_throwsMissingToken() {
+        assertThatThrownBy(() -> sessionService.getSession(null))
+                .isInstanceOf(MissingTokenException.class)
+                .satisfies(ex -> assertThat(((MissingTokenException) ex).getStatus()).isEqualTo(401));
+        verifyNoInteractions(accessTokenRepository, userRepository);
     }
 }

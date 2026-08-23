@@ -92,9 +92,8 @@ class OAuth2SessionControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/oauth2/user/session")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(EMAIL))
-                .andExpect(jsonPath("$.role").value("user"))
-                .andExpect(jsonPath("$.enabled").value(true));
+                .andExpect(jsonPath("$.userId").value(testUser.getId()))
+                .andExpect(jsonPath("$.name").value(testUser.getName()));
     }
 
     @Test

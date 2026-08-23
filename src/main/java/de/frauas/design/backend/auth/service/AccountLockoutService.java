@@ -22,12 +22,12 @@ import java.time.Instant;
 public class AccountLockoutService {
 
     /**
-     * lock the account after this many consecutive failed login attempts.
+     * Lock the account after this many consecutive failed login attempts.
      */
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
     /**
-     * duration of the temporary account lock after too many failures.
+     * Duration of the temporary account lock after too many failures.
      */
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(15);
 
@@ -47,13 +47,20 @@ public class AccountLockoutService {
     /**
      * Increments the failed-login counter and locks the account once
      * {@link #MAX_FAILED_ATTEMPTS} is reached.
+     *
+     * <p>Note: the counter is only cleared by {@link #resetOnSuccess}, not by the
+     * lockout window expiring. So if the account is locked, the lock expires, and
+     * the very next attempt fails again, the account is immediately re-locked for
+     * another full {@link #LOCKOUT_DURATION} — a single post-expiry failure is
+     * enough to re-trigger the lock, since the counter was never reset back down.</p>
      */
     public void recordFailedAttempt(BaseUser user) {
         int attempts = user.getFailedLoginAttempts() + 1;
         user.setFailedLoginAttempts(attempts);
         if (attempts >= MAX_FAILED_ATTEMPTS) {
             user.setLockedUntil(Instant.now().plus(LOCKOUT_DURATION));
-            log.warn("recordFailedAttempt — account locked after {} failed attempts user={}", attempts, user.getEmail());
+            log.warn(
+                    "recordFailedAttempt — account locked after {} failed attempts user={}", attempts, user.getEmail());
         }
         userRepository.save(user);
     }

@@ -5,7 +5,7 @@ import de.frauas.design.backend.auth.model.RefreshTokenEntity;
 import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import de.frauas.design.backend.user.model.BaseUser;
-import lombok.RequiredArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
@@ -23,18 +23,20 @@ import java.util.UUID;
 
 /**
  * Builds and persists access tokens (signed JWTs) and refresh tokens (opaque
- * random strings), matching the PHP reference implementation's
- * {@code oauth2_access_token} / {@code oauth2_refresh_tokens} tables.
- * Extracted from {@link TokenService} so token-issuance mechanics can be
- * unit-tested independently of grant handling.
+ * random strings).
+ *
+ * <p>The access token's JWT payload includes the user's email and name as
+ * claims, so anywhere the token is logged or stored should be treated as
+ * containing personal data.</p>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class TokenIssuer {
 
     /**
-     * Cryptographically secure random for refresh token generation.
+     * Cryptographically secure random for refresh token generation. {@link SecureRandom}
+     * is thread-safe, so sharing one static instance across all requests is safe and
+     * avoids the cost of re-seeding a new instance per call.
      */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -42,21 +44,43 @@ public class TokenIssuer {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccessTokenRepository accessTokenRepository;
 
-    @Value("${app.oauth2.issuer:http://localhost:8080}")
-    private String issuer;
-
-    @Value("${app.oauth2.access-token-ttl-seconds:3600}")
-    private long accessTokenTtlSeconds;
-
-    @Value("${app.oauth2.refresh-token-ttl-days:30}")
-    private long refreshTokenTtlDays;
+    /**
+     * The {@code iss} claim to embed in every issued access token.
+     */
+    private final String issuer;
 
     /**
-     * The configured access-token lifetime, in seconds, as reported to clients
-     * via the {@code expires_in} field.
+     * How long a refresh token stays valid after creation, in days.
      */
-    public long getAccessTokenTtlSeconds() {
-        return accessTokenTtlSeconds;
+    private final long refreshTokenTtlDays;
+
+    /**
+     * How long an access token stays valid after creation, in seconds. Exposed via
+     * a getter so {@link TokenService} can report the same value as the
+     * {@code expires_in} field of the token response, without duplicating the
+     * config lookup.
+     */
+    @Getter
+    private final long accessTokenTtlSeconds;
+
+    /**
+     * All configuration is constructor-injected (rather than field-injected via
+     * {@code @Value} on non-final fields) so that {@code issuer}/TTLs are immutable
+     * and this class can be constructed directly in unit tests without reflection.
+     */
+    public TokenIssuer(
+            JwtEncoder jwtEncoder,
+            RefreshTokenRepository refreshTokenRepository,
+            AccessTokenRepository accessTokenRepository,
+            @Value("${app.oauth2.issuer:http://localhost:8080}") String issuer,
+            @Value("${app.oauth2.access-token-ttl-seconds:3600}") long accessTokenTtlSeconds,
+            @Value("${app.oauth2.refresh-token-ttl-days:30}") long refreshTokenTtlDays) {
+        this.jwtEncoder = jwtEncoder;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.accessTokenRepository = accessTokenRepository;
+        this.issuer = issuer;
+        this.accessTokenTtlSeconds = accessTokenTtlSeconds;
+        this.refreshTokenTtlDays = refreshTokenTtlDays;
     }
 
     /**
@@ -79,7 +103,8 @@ public class TokenIssuer {
                 .build();
 
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).build();
-        String tokenValue = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        String tokenValue =
+                jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
 
         // Persist for revocation support
         AccessTokenEntity entity = new AccessTokenEntity();
@@ -103,12 +128,13 @@ public class TokenIssuer {
         SECURE_RANDOM.nextBytes(bytes);
         String tokenValue = HexFormat.of().formatHex(bytes);
 
+        Instant now = Instant.now();
         RefreshTokenEntity rt = new RefreshTokenEntity();
         rt.setTokenValue(tokenValue);
         rt.setUserId(user.getId());
         rt.setScope(scope);
-        rt.setCreatedAt(Instant.now());
-        rt.setExpiresAt(Instant.now().plus(refreshTokenTtlDays, ChronoUnit.DAYS));
+        rt.setCreatedAt(now);
+        rt.setExpiresAt(now.plus(refreshTokenTtlDays, ChronoUnit.DAYS));
         refreshTokenRepository.save(rt);
         log.debug("createRefreshToken — issued userId={}", user.getId());
         return tokenValue;

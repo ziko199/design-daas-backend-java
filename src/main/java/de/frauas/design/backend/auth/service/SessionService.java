@@ -1,6 +1,7 @@
 package de.frauas.design.backend.auth.service;
 
 import de.frauas.design.backend.auth.dto.SessionInfoDto;
+import de.frauas.design.backend.auth.exception.MissingTokenException;
 import de.frauas.design.backend.auth.exception.SessionException;
 import de.frauas.design.backend.auth.exception.TokenRevokedException;
 import de.frauas.design.backend.auth.exception.UserDisabledException;
@@ -17,30 +18,21 @@ import org.springframework.stereotype.Service;
 import java.util.Objects;
 
 /**
- * Business logic behind {@code GET /oauth2/user/session}: validates that the presented
- * JWT's access token has not been revoked and that the underlying user still exists and
- * is enabled, then returns a summary of the session.
+ * Handles {@code GET /oauth2/user/session}: checks that the given JWT is still valid
+ * (not revoked) and that the user behind it still exists and is enabled, then returns
+ * a short summary of the session.
  *
- * <p>Extracted from {@code OAuth2SessionController} so the validation rules can be
- * unit-tested without a Spring context.</p>
+ * <p><b>How failures work:</b> a bad session (no token, revoked token, unknown or
+ * disabled user) is a normal, expected result here — not a bug. So each case throws its
+ * own small exception ({@link MissingTokenException}, {@link TokenRevokedException},
+ * {@link UserNotFoundException}, {@link UserDisabledException}), and {@code
+ * SessionExceptionHandler} turns that into the right HTTP response. Any other, unexpected
+ * exception still becomes a 500, as normal.</p>
  *
- * <p><b>Failure handling:</b> an invalid session (revoked token, unknown/disabled user)
- * is an expected outcome of calling this endpoint, not a bug — so each reason is signalled
- * via its own unchecked {@link SessionException} subtype ({@link TokenRevokedException},
- * {@link UserNotFoundException}, {@link UserDisabledException}) rather than a generic
- * exception. {@code SessionExceptionHandler} catches the common {@link SessionException}
- * base type and maps it to the right HTTP status/body, while anything else (a real bug)
- * still falls through to {@code GlobalExceptionHandler} as a 500. This keeps the "happy
- * path" return type simple ({@link SessionInfoDto}) while still making every failure case
- * explicit and testable.</p>
- *
- * <p>Note: this is a defense-in-depth / introspection endpoint. The authoritative
- * revocation check for every other authenticated endpoint is {@code TokenRevocationValidator},
- * which runs as part of the JWT validation in the resource-server filter chain (see
- * {@code AuthorizationServerConfig#jwtDecoder}). This service duplicates that check so a
- * caller of this specific endpoint gets a descriptive error body (built by
- * {@code SessionExceptionHandler}), but the request would already have been rejected
- * earlier if the validator considered the token invalid.</p>
+ * <p>Note: this endpoint is just an extra check for the caller, not the main security
+ * gate. The real revocation check for all other endpoints happens earlier, in {@code
+ * TokenRevocationValidator}. So by the time this code runs, the token has usually already
+ * been checked once — this just repeats the check to give a clearer error message.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -53,23 +45,39 @@ public class SessionService {
     /**
      * Validates the given JWT and returns the session summary.
      *
+     * @throws MissingTokenException if {@code jwt} is {@code null}
      * @throws TokenRevokedException if the token is unknown or revoked
      * @throws UserNotFoundException if the token's user no longer exists
      * @throws UserDisabledException if the token's user is disabled
      */
     public SessionInfoDto getSession(Jwt jwt) {
+        if (jwt == null) {
+            log.warn("getSession — no JWT present");
+            throw new MissingTokenException();
+        }
+
         String jti = jwt.getId();
         log.debug("getSession — validating token jti={} sub={}", jti, jwt.getSubject());
 
         // A missing jti is treated the same as an unknown/revoked token — every token issued
         // by TokenService always carries one, so its absence indicates a malformed or foreign token.
-        boolean revoked = jti == null || accessTokenRepository.findByJti(jti).map(AccessTokenEntity::isRevoked).orElse(true);
+        boolean revoked = jti == null
+                || accessTokenRepository
+                        .findByJti(jti)
+                        .map(AccessTokenEntity::isRevoked)
+                        .orElse(true);
         if (revoked) {
             log.warn("getSession — token revoked or unknown jti={}", jti);
             throw new TokenRevokedException();
         }
 
-        Integer userId = Integer.parseInt(Objects.requireNonNull(jwt.getSubject()));
+        Integer userId;
+        try {
+            userId = Integer.parseInt(Objects.requireNonNull(jwt.getSubject()));
+        } catch (NumberFormatException e) {
+            log.warn("getSession — non-numeric token subject={}", jwt.getSubject());
+            throw new UserNotFoundException();
+        }
         BaseUser user = userRepository.findById(userId).orElseThrow(() -> {
             log.warn("getSession — no user found for token subject userId={}", userId);
             return new UserNotFoundException();

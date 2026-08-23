@@ -29,8 +29,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 @Slf4j
 public class TokenRevocationValidator implements OAuth2TokenValidator<Jwt> {
 
-    private static final OAuth2Error REVOKED_ERROR = new OAuth2Error(
-            OAuth2ErrorCodes.INVALID_TOKEN, "The access token has been revoked or is unknown", null);
+    private static final OAuth2Error REVOKED_ERROR =
+            new OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN, "The access token has been revoked or is unknown", null);
 
     private static final OAuth2Error DISABLED_ERROR = new OAuth2Error(
             OAuth2ErrorCodes.INVALID_TOKEN, "The token's user account no longer exists or is disabled", null);
@@ -51,7 +51,8 @@ public class TokenRevocationValidator implements OAuth2TokenValidator<Jwt> {
             return OAuth2TokenValidatorResult.failure(REVOKED_ERROR);
         }
 
-        boolean revoked = accessTokenRepository.findByJti(jti)
+        boolean revoked = accessTokenRepository
+                .findByJti(jti)
                 .map(AccessTokenEntity::isRevoked)
                 .orElse(true);
         if (revoked) {

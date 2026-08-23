@@ -143,8 +143,7 @@ public class TokenService {
         String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
 
         log.info("passwordGrant — issued token for user={} userId={} scope={}", username, user.getId(), grantedScope);
-        return new TokenResponseDto(
-                accessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope, tokenIssuer.getAccessTokenTtlSeconds());
+        return buildTokenResponse(accessToken, newRefreshToken, grantedScope);
     }
 
     // -------------------------------------------------------------------------
@@ -197,12 +196,16 @@ public class TokenService {
         refreshTokenRepository.save(refreshTokenEntity);
 
         log.info("refreshGrant — rotated token for user={} userId={}", user.getEmail(), user.getId());
+        return buildTokenResponse(newAccessToken, newRefreshToken, grantedScope);
+    }
+
+    /**
+     * Builds the token response body shared by both grants, so the field order
+     * and {@code token_type}/{@code expires_in} values aren't repeated in two places.
+     */
+    private TokenResponseDto buildTokenResponse(String accessToken, String refreshToken, String scope) {
         return new TokenResponseDto(
-                newAccessToken,
-                BEARER_TOKEN_TYPE,
-                newRefreshToken,
-                grantedScope,
-                tokenIssuer.getAccessTokenTtlSeconds());
+                accessToken, BEARER_TOKEN_TYPE, refreshToken, scope, tokenIssuer.getAccessTokenTtlSeconds());
     }
 
     // -------------------------------------------------------------------------
@@ -235,7 +238,7 @@ public class TokenService {
                                 accessTokenRepository.save(accessToken);
                                 log.info("logout — revoked access token jti={} userId={}", jti, jwt.getSubject());
                             },
-                            () -> log.warn("logout — no access token record for jti={}", jti));
+                            () -> log.debug("logout — no access token record for jti={}", jti));
         }
 
         if (refreshToken != null && !refreshToken.isBlank()) {

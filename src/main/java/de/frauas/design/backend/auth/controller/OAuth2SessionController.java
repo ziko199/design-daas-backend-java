@@ -31,12 +31,7 @@ public class OAuth2SessionController {
 
     @GetMapping("/oauth2/user/session")
     public ResponseEntity<SessionInfoDto> session(@AuthenticationPrincipal Jwt jwt) {
-        if (jwt == null) {
-            log.warn("GET /oauth2/user/session — no JWT present, returning 401");
-            return ResponseEntity.status(401).build();
-        }
-
-        log.info("GET /oauth2/user/session — checking session for sub={}", jwt.getSubject());
+        log.info("GET /oauth2/user/session — checking session for sub={}", jwt != null ? jwt.getSubject() : null);
         SessionInfoDto session = sessionService.getSession(jwt);
         return ResponseEntity.ok(session);
     }

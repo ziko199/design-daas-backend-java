@@ -28,5 +28,4 @@ public record TokenResponseDto(
         @JsonProperty("token_type") String tokenType,
         @JsonProperty("refresh_token") String refreshToken,
         @JsonProperty("scope") String scope,
-        @JsonProperty("expires_in") long expiresInSeconds) {
-}
+        @JsonProperty("expires_in") long expiresInSeconds) {}

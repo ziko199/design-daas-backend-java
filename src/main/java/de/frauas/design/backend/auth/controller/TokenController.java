@@ -1,26 +1,31 @@
 package de.frauas.design.backend.auth.controller;
 
+import de.frauas.design.backend.auth.dto.GrantRequest;
 import de.frauas.design.backend.auth.dto.TokenResponseDto;
 import de.frauas.design.backend.auth.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Single token endpoint at {@code POST /oauth2/user/token}.
- * Handles the resource-owner password grant and the refresh-token grant.
+ * Token issuance/revocation endpoints at {@code /oauth2/user/token} (POST) and
+ * {@code /oauth2/user/logout} (POST). Handles the resource-owner password grant,
+ * the refresh-token grant, and revoking a caller's own tokens on logout.
  *
  * <p>This controller is intentionally thin: it only parses the request and shapes
  * the response. All business logic — grant-type dispatch, credential verification,
- * account lockout, scope validation, and token issuance/rotation — lives in
+ * account lockout, scope validation, and token issuance/rotation/revocation — lives in
  * {@link TokenService} so that it can be unit-tested without a Spring context.
  * Rejected grants are reported as {@code TokenGrantException} subclasses and mapped
- * to HTTP error responses by {@code TokenExceptionHandler}.</p>
+ * to HTTP error responses by {@code TokenExceptionHandler}. Unlike {@code /token},
+ * {@code /logout} requires an authenticated caller (an already-valid access token).</p>
  */
 @RestController
 @RequestMapping("/oauth2/user")
@@ -42,10 +47,9 @@ public class TokenController {
      *                     defaults to the user's primary role scope when omitted
      * @return the issued token pair, serialized as the standard OAuth2 token response
      */
-    @PostMapping(value = "/token", consumes = {
-            MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-            MediaType.APPLICATION_JSON_VALUE
-    })
+    @PostMapping(
+            value = "/token",
+            consumes = {MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<TokenResponseDto> token(
             @RequestParam("grant_type") String grantType,
             @RequestParam(value = "username", required = false) String username,
@@ -55,11 +59,39 @@ public class TokenController {
 
         log.info("POST /oauth2/user/token — grant_type={}", grantType);
 
-        TokenResponseDto result = tokenService.grantToken(grantType, username, password, refreshToken, scope);
+        GrantRequest request = GrantRequest.of(grantType, username, password, refreshToken, scope);
+
+        TokenResponseDto result = tokenService.grantToken(request);
 
         log.info("POST /oauth2/user/token — grant_type={} succeeded", grantType);
 
         return ResponseEntity.ok(result);
     }
-}
 
+    /**
+     * Revokes the caller's current access token, and optionally a refresh token, so
+     * they stop working immediately instead of lingering until natural expiry.
+     * Requires authentication (unlike {@code /token}); logout is idempotent, so
+     * revoking an already-invalid token is not an error.
+     *
+     * @param jwt          the caller's current access token, injected by the resource-server filter chain
+     * @param refreshToken optional refresh token to revoke alongside the access token
+     */
+    @PostMapping(
+            value = "/logout",
+            consumes = {
+                MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+                MediaType.APPLICATION_JSON_VALUE,
+                MediaType.ALL_VALUE
+            })
+    public ResponseEntity<Void> logout(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(value = "refresh_token", required = false) String refreshToken) {
+
+        log.info("POST /oauth2/user/logout — sub={}", jwt != null ? jwt.getSubject() : null);
+
+        tokenService.logout(jwt, refreshToken);
+
+        return ResponseEntity.noContent().build();
+    }
+}

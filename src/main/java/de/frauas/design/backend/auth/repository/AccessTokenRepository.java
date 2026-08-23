@@ -24,9 +24,13 @@ public interface AccessTokenRepository extends JpaRepository<AccessTokenEntity, 
     @Query("DELETE FROM AccessTokenEntity at WHERE at.userId = :userId")
     void deleteByUserId(@Param("userId") Integer userId);
 
+    /**
+     * Deletes all access tokens whose {@code expiresAt} is strictly before {@code now}.
+     *
+     * @return the number of rows deleted
+     */
     @Modifying
     @Transactional
     @Query("DELETE FROM AccessTokenEntity at WHERE at.expiresAt < :now")
-    void deleteExpired(@Param("now") Instant now);
+    int deleteExpired(@Param("now") Instant now);
 }
-

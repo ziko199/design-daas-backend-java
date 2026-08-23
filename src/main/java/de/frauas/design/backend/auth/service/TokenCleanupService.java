@@ -11,12 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 /**
- * SEC-M7: Scheduled job that purges expired tokens from both the
- * {@code refresh_tokens} and {@code access_tokens} tables.
+ * Scheduled job that purges expired tokens from both the {@code refresh_tokens}
+ * and {@code access_tokens} tables.
  *
  * <p>Without this job the tables grow without bound because expired tokens
- * are never removed — {@code RefreshTokenRepository.deleteExpired()} and
- * {@code AccessTokenRepository.deleteExpired()} were defined but never called.</p>
+ * are never removed.</p>
  *
  * <p>The job runs daily at 03:00 (server local time). The schedule is
  * configurable via the {@code app.token.cleanup.cron} property.</p>
@@ -40,9 +39,9 @@ public class TokenCleanupService {
     @Transactional
     public void purgeExpiredTokens() {
         Instant now = Instant.now();
-        refreshTokenRepository.deleteExpired(now);
-        accessTokenRepository.deleteExpired(now);
-        log.info("Token cleanup completed — purged all tokens expired before {}", now);
+        int deletedRefreshTokens = refreshTokenRepository.deleteExpired(now);
+        int deletedAccessTokens = accessTokenRepository.deleteExpired(now);
+        log.info("Token cleanup completed — removed {} refresh token(s) and {} access token(s) expired before {}",
+                deletedRefreshTokens, deletedAccessTokens, now);
     }
 }
-

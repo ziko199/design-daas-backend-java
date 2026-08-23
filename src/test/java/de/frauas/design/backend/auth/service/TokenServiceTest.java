@@ -1,5 +1,6 @@
 package de.frauas.design.backend.auth.service;
 
+import de.frauas.design.backend.auth.dto.GrantRequest;
 import de.frauas.design.backend.auth.dto.TokenResponseDto;
 import de.frauas.design.backend.auth.exception.AccountDisabledException;
 import de.frauas.design.backend.auth.exception.AccountLockedException;
@@ -28,7 +29,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -59,13 +59,11 @@ class TokenServiceTest {
     void setUp() {
         AccountLockoutService accountLockoutService = new AccountLockoutService(userRepository);
         ScopeResolver scopeResolver = new ScopeResolver();
-        TokenIssuer tokenIssuer = new TokenIssuer(jwtEncoder, refreshTokenRepository, accessTokenRepository);
-        ReflectionTestUtils.setField(tokenIssuer, "issuer", "http://localhost:8080");
-        ReflectionTestUtils.setField(tokenIssuer, "accessTokenTtlSeconds", 3600L);
-        ReflectionTestUtils.setField(tokenIssuer, "refreshTokenTtlDays", 30L);
+        TokenIssuer tokenIssuer = new TokenIssuer(jwtEncoder, refreshTokenRepository, accessTokenRepository,
+                "http://localhost:8080", 3600L, 30L);
 
         tokenService = new TokenService(userRepository, passwordEncoder, refreshTokenRepository,
-                accountLockoutService, scopeResolver, tokenIssuer);
+                accessTokenRepository, accountLockoutService, scopeResolver, tokenIssuer);
     }
 
     private User user() {
@@ -330,6 +328,108 @@ class TokenServiceTest {
             assertThat(result.refreshToken()).isNotEqualTo("valid-token");
             assertThat(rt.isRevoked()).isTrue();
             verify(refreshTokenRepository).save(rt);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // grantToken dispatch
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("grantToken")
+    class GrantToken {
+
+        @Test
+        @DisplayName("dispatches a PasswordGrantRequest to passwordGrant")
+        void passwordGrantRequest_dispatchesToPasswordGrant() {
+            User user = user();
+            stubEncoder();
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
+
+            TokenResponseDto result = tokenService.grantToken(
+                    GrantRequest.of("password", EMAIL, PASSWORD, null, ""));
+
+            assertThat(result.scope()).isEqualTo("user");
+        }
+
+        @Test
+        @DisplayName("dispatches a RefreshGrantRequest to refreshGrant")
+        void refreshGrantRequest_dispatchesToRefreshGrant() {
+            User user = user();
+            RefreshTokenEntity rt = new RefreshTokenEntity();
+            rt.setTokenValue("valid-token");
+            rt.setUserId(1);
+            rt.setScope("user");
+            rt.setExpiresAt(Instant.now().plusSeconds(60));
+            stubEncoder();
+            when(refreshTokenRepository.findActiveByTokenValue("valid-token")).thenReturn(Optional.of(rt));
+            when(userRepository.findById(1)).thenReturn(Optional.of(user));
+
+            TokenResponseDto result = tokenService.grantToken(
+                    GrantRequest.of("refresh_token", null, null, "valid-token", null));
+
+            assertThat(result.refreshToken()).isNotEqualTo("valid-token");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Logout
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("logout")
+    class Logout {
+
+        @Test
+        @DisplayName("revokes the access token identified by the JWT's jti")
+        void revokesAccessTokenByJti() {
+            AccessTokenEntity at = new AccessTokenEntity();
+            at.setJti("jti-1");
+            at.setUserId(1);
+            when(encodedJwt.getId()).thenReturn("jti-1");
+            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
+
+            tokenService.logout(encodedJwt, null);
+
+            assertThat(at.isRevoked()).isTrue();
+            verify(accessTokenRepository).save(at);
+            verifyNoInteractions(refreshTokenRepository);
+        }
+
+        @Test
+        @DisplayName("also revokes the given refresh token when supplied")
+        void revokesRefreshTokenWhenSupplied() {
+            AccessTokenEntity at = new AccessTokenEntity();
+            at.setJti("jti-1");
+            RefreshTokenEntity rt = new RefreshTokenEntity();
+            rt.setTokenValue("refresh-1");
+            when(encodedJwt.getId()).thenReturn("jti-1");
+            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
+            when(refreshTokenRepository.findActiveByTokenValue("refresh-1")).thenReturn(Optional.of(rt));
+
+            tokenService.logout(encodedJwt, "refresh-1");
+
+            assertThat(at.isRevoked()).isTrue();
+            assertThat(rt.isRevoked()).isTrue();
+            verify(refreshTokenRepository).save(rt);
+        }
+
+        @Test
+        @DisplayName("is a no-op (does not throw) when the access token is unknown")
+        void unknownAccessToken_doesNotThrow() {
+            when(encodedJwt.getId()).thenReturn("unknown-jti");
+            when(accessTokenRepository.findByJti("unknown-jti")).thenReturn(Optional.empty());
+
+            assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
+            verify(accessTokenRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("is a no-op (does not throw) when jwt is null")
+        void nullJwt_doesNotThrow() {
+            assertThatCode(() -> tokenService.logout(null, null)).doesNotThrowAnyException();
+            verifyNoInteractions(accessTokenRepository, refreshTokenRepository);
         }
     }
 }

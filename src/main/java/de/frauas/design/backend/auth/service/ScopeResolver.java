@@ -5,78 +5,66 @@ import de.frauas.design.backend.user.model.BaseUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
-
 /**
  * Resolves and validates the OAuth2 scope for a user, ensuring clients
  * cannot escalate beyond the scope their role is authorized to receive.
  * Extracted from {@link TokenService} so scope rules can be unit-tested
  * independently of grant handling.
  *
- * <p>Each user has exactly one role, so a token only ever carries a single scope
- * (no space-separated scope lists).</p>
+ * <p>Each user has exactly one role, and that role is also their only valid scope.</p>
  */
 @Component
 @Slf4j
 public class ScopeResolver {
 
     /**
-     * Validates the client-requested scope against the set of scopes that
-     * {@code user}'s role is authorized to receive.
+     * Returns the scope to grant for this user's role, checking that the client
+     * didn't request a different one.
      *
-     * <ul>
-     *   <li>Regular {@code user} → only the {@code user} scope is allowed.</li>
-     *   <li>{@code admin} → either {@code admin} or {@code user} is allowed.</li>
-     *   <li>{@code expert} → either {@code expert} or {@code user} is allowed.</li>
-     * </ul>
-     *
-     * <p>If the client requests no scope, the default scope for the user's role is
-     * returned. If the client requests a scope outside the authorized set (or more
-     * than one scope), an {@link InvalidScopeException} is thrown.</p>
+     * <p>Each role has exactly one scope (its own name: {@code admin}, {@code expert},
+     * or {@code user}) — there's no downgrading to a lower scope. If the client
+     * requests no scope, the user's role is returned. If the client requests any
+     * scope other than their own role, an {@link InvalidScopeException} is thrown.</p>
      *
      * @param user           the authenticated user
      * @param requestedScope the raw scope parameter from the token request (may be null/blank)
-     * @return the single authorized scope to grant
-     * @throws InvalidScopeException if the requested scope exceeds the user's authorization
+     * @return the user's role, used as the granted scope
+     * @throws InvalidScopeException if the requested scope doesn't match the user's role
      */
     public String resolveAuthorizedScope(BaseUser user, String requestedScope) {
+        String role = user.getRole();
         if (requestedScope == null || requestedScope.isBlank()) {
-            // Default: grant the primary scope for this role
-            return user.getRole();
+            return role;
         }
 
         String requested = requestedScope.trim();
-        Set<String> allowed = allowedScopesFor(user);
-
-        // Reject multi-scope requests and anything outside the user's authorization
-        if (requested.contains(" ") || !allowed.contains(requested)) {
-            log.warn("resolveAuthorizedScope — scope escalation attempt by user={}: requested={}, allowed={}",
-                    user.getEmail(), requested, allowed);
+        if (!requested.equals(role)) {
+            log.warn(
+                    "resolveAuthorizedScope — scope escalation attempt by user={}: requested={}, role={}",
+                    user.getEmail(),
+                    requested,
+                    role);
             throw new InvalidScopeException();
         }
 
-        return requested;
-    }
-
-    /**
-     * Returns the set of scopes a user is authorized to hold, derived solely
-     * from their discriminator role — not from client input.
-     */
-    private Set<String> allowedScopesFor(BaseUser user) {
-        return switch (user.getRole()) {
-            case "admin" -> Set.of("admin", "user");
-            case "expert" -> Set.of("expert", "user");
-            case "user" -> Set.of("user");
-            default -> Set.of("user");
-        };
+        return role;
     }
 
     /**
      * Resolves a scope string that was previously persisted to the database (e.g.
      * the {@code scope} column of a refresh token). Because this value was already
      * validated at issuance time, no role-check is needed here.
+     *
+     * <p>A blank/missing value is unexpected (every scope should have been set at
+     * issuance) and is downgraded to the least-privileged {@code user} scope rather
+     * than failing the request; a warning is logged so the underlying data issue
+     * doesn't go unnoticed.</p>
      */
     public String parsePersistedScope(String scope) {
-        return (scope == null || scope.isBlank()) ? "user" : scope.trim();
+        if (scope == null || scope.isBlank()) {
+            log.warn("parsePersistedScope — blank/missing persisted scope, defaulting to 'user'");
+            return "user";
+        }
+        return scope.trim();
     }
 }

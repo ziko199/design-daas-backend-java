@@ -1,5 +1,8 @@
 package de.frauas.design.backend.auth.service;
 
+import de.frauas.design.backend.auth.dto.GrantRequest;
+import de.frauas.design.backend.auth.dto.GrantRequest.PasswordGrantRequest;
+import de.frauas.design.backend.auth.dto.GrantRequest.RefreshGrantRequest;
 import de.frauas.design.backend.auth.dto.TokenResponseDto;
 import de.frauas.design.backend.auth.exception.AccountDisabledException;
 import de.frauas.design.backend.auth.exception.ExpiredRefreshTokenException;
@@ -7,36 +10,38 @@ import de.frauas.design.backend.auth.exception.InvalidCredentialsException;
 import de.frauas.design.backend.auth.exception.InvalidRefreshTokenException;
 import de.frauas.design.backend.auth.exception.InvalidRequestException;
 import de.frauas.design.backend.auth.exception.RefreshTokenUserInvalidException;
-import de.frauas.design.backend.auth.exception.UnsupportedGrantTypeException;
 import de.frauas.design.backend.auth.model.RefreshTokenEntity;
+import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import de.frauas.design.backend.user.model.BaseUser;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
 /**
- * Core business logic for the OAuth2 resource-owner password grant and refresh-token
- * grant, extracted from {@code TokenController} so that lockout, scope-escalation, and
- * token-issuance/rotation rules can be unit-tested independently of the web layer.
+ * Handles logging in, refreshing tokens, and logging out.
  *
- * <p>Both access tokens and refresh tokens are persisted to the database, matching the
- * PHP reference implementation ({@code oauth2_access_token} / {@code oauth2_refresh_tokens}
- * tables). Access tokens carry a {@code jti} claim that is checked for revocation by
- * {@link TokenRevocationValidator} on every authenticated request, and by
- * {@link SessionService} for the {@code /oauth2/user/session} endpoint.</p>
+ * <p>Login (password grant): checks the username/password, makes sure the account
+ * isn't locked or disabled, checks the requested scope is allowed, then issues a new
+ * access token and refresh token.</p>
  *
- * <p>Refresh tokens are rotated on every use: the old token is marked revoked and a new
- * one is issued. This enables theft detection per RFC 6749 / RFC 9700.</p>
+ * <p>Refresh (refresh-token grant): checks the given refresh token is still valid,
+ * checks the user behind it still exists and is enabled, then issues a new access
+ * token and refresh token. The old refresh token is revoked so it can't be reused
+ * (token rotation).</p>
  *
- * <p>This class focuses solely on orchestrating the two grants; account lockout,
- * scope resolution, and token issuance are delegated to {@link AccountLockoutService},
- * {@link ScopeResolver}, and {@link TokenIssuer} respectively.</p>
+ * <p>Logout: revokes the caller's access token and, if given, their refresh token,
+ * so both stop working right away instead of waiting for them to expire.</p>
+ *
+ * <p>The actual lockout rules, scope rules, and token creation live in
+ * {@link AccountLockoutService}, {@link ScopeResolver}, and {@link TokenIssuer} —
+ * this class just coordinates them.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -44,19 +49,19 @@ import java.time.Instant;
 public class TokenService {
 
     /**
-     * dummy BCrypt hash used when a user is not found so that the
+     * Dummy BCrypt hash used when a user is not found so that the
      * response time is indistinguishable from a wrong-password attempt.
      */
-    private static final String DUMMY_HASH =
-            "$2a$10$7EqJtq98hPqEX7fNZaFWoOa3G5Wq/8rEjMvT6T3E2z3aJEOv5bIfy";
+    private static final String DUMMY_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOa3G5Wq/8rEjMvT6T3E2z3aJEOv5bIfy";
     /**
-     * token type advertised to clients, per RFC 6749 §5.1.
+     * Token type advertised to clients, per RFC 6749 §5.1.
      */
     private static final String BEARER_TOKEN_TYPE = "Bearer";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AccessTokenRepository accessTokenRepository;
     private final AccountLockoutService accountLockoutService;
     private final ScopeResolver scopeResolver;
     private final TokenIssuer tokenIssuer;
@@ -66,25 +71,23 @@ public class TokenService {
     // -------------------------------------------------------------------------
 
     /**
-     * Dispatches to the appropriate grant handler based on {@code grant_type},
+     * Dispatches to the appropriate grant handler based on the validated {@link GrantRequest},
      * as required by RFC 6749. Extracted from {@code TokenController} so that
      * the controller stays a thin HTTP adapter and this routing is unit-testable
      * alongside the rest of the grant logic.
      *
-     * @param grantType    {@code "password"} or {@code "refresh_token"}
-     * @param username     resource-owner email; used only for the password grant
-     * @param password     resource-owner password; used only for the password grant
-     * @param refreshToken the refresh token to redeem; used only for the refresh-token grant
-     * @param scope        client-requested scope string; used only for the password grant
+     * <p>{@link GrantRequest} being {@code sealed} means this {@code switch} is exhaustive:
+     * the compiler rejects this method if a new grant variant is ever added without
+     * updating the dispatch here.</p>
+     *
+     * @param request the grant request, already resolved to a specific variant by
+     *                {@link GrantRequest#of}
      * @return the newly issued access/refresh token pair
-     * @throws UnsupportedGrantTypeException if {@code grantType} is not recognized
      */
-    public TokenResponseDto grantToken(String grantType, String username, String password,
-                                           String refreshToken, String scope) {
-        return switch (grantType) {
-            case "password" -> passwordGrant(username, password, scope);
-            case "refresh_token" -> refreshGrant(refreshToken);
-            default -> throw new UnsupportedGrantTypeException();
+    public TokenResponseDto grantToken(GrantRequest request) {
+        return switch (request) {
+            case PasswordGrantRequest r -> passwordGrant(r.username(), r.password(), r.scope());
+            case RefreshGrantRequest r -> refreshGrant(r.refreshToken());
         };
     }
 
@@ -140,8 +143,8 @@ public class TokenService {
         String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
 
         log.info("passwordGrant — issued token for user={} userId={} scope={}", username, user.getId(), grantedScope);
-        return new TokenResponseDto(accessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope,
-                tokenIssuer.getAccessTokenTtlSeconds());
+        return new TokenResponseDto(
+                accessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope, tokenIssuer.getAccessTokenTtlSeconds());
     }
 
     // -------------------------------------------------------------------------
@@ -174,7 +177,7 @@ public class TokenService {
             throw new ExpiredRefreshTokenException();
         }
 
-        // Re-validate user (mirrors PHP VerifyingRefreshTokenGrant)
+        // Re-validate user
         var userOpt = userRepository.findById(refreshTokenEntity.getUserId());
         if (userOpt.isEmpty() || !userOpt.get().isEnabled()) {
             refreshTokenRepository.delete(refreshTokenEntity);
@@ -194,7 +197,57 @@ public class TokenService {
         refreshTokenRepository.save(refreshTokenEntity);
 
         log.info("refreshGrant — rotated token for user={} userId={}", user.getEmail(), user.getId());
-        return new TokenResponseDto(newAccessToken, BEARER_TOKEN_TYPE, newRefreshToken, grantedScope,
+        return new TokenResponseDto(
+                newAccessToken,
+                BEARER_TOKEN_TYPE,
+                newRefreshToken,
+                grantedScope,
                 tokenIssuer.getAccessTokenTtlSeconds());
+    }
+
+    // -------------------------------------------------------------------------
+    // Logout
+    // -------------------------------------------------------------------------
+
+    /**
+     * Revokes the caller's current access token (identified by the JWT's {@code jti}
+     * claim) and, if supplied, the given refresh token — so both stop working
+     * immediately instead of lingering until natural expiry.
+     *
+     * <p>Unlike the grant methods, an invalid/unknown/already-revoked token here is not
+     * treated as an error: logout is idempotent, so a missing {@code jti} or refresh
+     * token record is silently ignored.</p>
+     *
+     * @param jwt          the caller's current access token; may be {@code null} if the
+     *                     request reached this method unauthenticated (defensive only —
+     *                     the security filter chain normally rejects that earlier)
+     * @param refreshToken optional refresh token to revoke alongside the access token
+     */
+    @Transactional
+    public void logout(Jwt jwt, String refreshToken) {
+        if (jwt != null) {
+            String jti = jwt.getId();
+            accessTokenRepository
+                    .findByJti(jti)
+                    .ifPresentOrElse(
+                            accessToken -> {
+                                accessToken.revoke();
+                                accessTokenRepository.save(accessToken);
+                                log.info("logout — revoked access token jti={} userId={}", jti, jwt.getSubject());
+                            },
+                            () -> log.warn("logout — no access token record for jti={}", jti));
+        }
+
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokenRepository
+                    .findActiveByTokenValue(refreshToken)
+                    .ifPresentOrElse(
+                            entity -> {
+                                entity.revoke();
+                                refreshTokenRepository.save(entity);
+                                log.info("logout — revoked refresh token userId={}", entity.getUserId());
+                            },
+                            () -> log.debug("logout — refresh token already revoked or unknown"));
+        }
     }
 }

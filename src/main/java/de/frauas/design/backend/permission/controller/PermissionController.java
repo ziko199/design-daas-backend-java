@@ -1,17 +1,20 @@
 package de.frauas.design.backend.permission.controller;
 
-import de.frauas.design.backend.auth.AccessTokenRepository;
+import de.frauas.design.backend.auth.service.JwtUserResolver;
 import de.frauas.design.backend.permission.dto.PermissionResultDto;
 import de.frauas.design.backend.permission.service.PermissionService;
+import de.frauas.design.backend.security.Authorities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -30,8 +33,7 @@ import java.util.Map;
 public class PermissionController {
 
     private final PermissionService permissionService;
-    private final JwtDecoder jwtDecoder;
-    private final AccessTokenRepository accessTokenRepository;
+    private final JwtUserResolver jwtUserResolver;
 
     /**
      * GET /permissions/{functionName}/{userId}
@@ -97,7 +99,6 @@ public class PermissionController {
 
     /**
      * Resolves the user ID from either the body-supplied token or the Authorization header JWT.
-     * Mirrors PHP OAuth2AuthorizationValidator::tokenInfo().
      *
      * @param bodyToken the raw JWT string from the request body (may be null)
      * @param authJwt   the JWT from the Authorization header (may be null)
@@ -105,32 +106,8 @@ public class PermissionController {
      */
     private Integer resolveUserId(String bodyToken, Jwt authJwt) {
         if (bodyToken != null && !bodyToken.isBlank()) {
-            try {
-                Jwt decoded = jwtDecoder.decode(bodyToken);
-                // Check revocation
-                String jti = decoded.getId();
-                if (jti != null) {
-                    boolean revoked = accessTokenRepository.findByJti(jti)
-                        .map(at -> at.isRevoked())
-                        .orElse(true);
-                    if (revoked) {
-                        log.debug("permissions_info: body token with jti={} is revoked", jti);
-                        return null;
-                    }
-                }
-                String sub = decoded.getSubject();
-                if (sub != null && !sub.isBlank()) {
-                    return Integer.parseInt(sub);
-                }
-            } catch (JwtException | NumberFormatException e) {
-                log.debug("permissions_info: body token invalid — {}", e.getMessage());
-                return null;
-            }
+            return jwtUserResolver.resolveFromRawToken(bodyToken);
         }
-        // Fall back to Authorization header token
-        if (authJwt != null && authJwt.getSubject() != null) {
-            return Integer.parseInt(authJwt.getSubject());
-        }
-        return null;
+        return jwtUserResolver.resolveFromAuthenticatedJwt(authJwt);
     }
 }

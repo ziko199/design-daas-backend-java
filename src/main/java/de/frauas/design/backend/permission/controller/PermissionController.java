@@ -58,11 +58,6 @@ public class PermissionController {
      * Validates the token supplied in the request body (field {@code token}) and returns
      * the permission result for the token's user on the given {@code function_name}.
      *
-     * <p>Mirrors PHP PermissionsHttpController::permissionInfoAction() which reads
-     * {@code token} and {@code function_name} from the request body, validates the token
-     * independently via OAuth2AuthorizationValidator::tokenInfo(), and then calls
-     * PermissionCalculationService::getPermission().</p>
-     *
      * <p>If no {@code token} field is present in the body, falls back to the JWT from
      * the Authorization header (for backward compatibility with admin callers).</p>
      *

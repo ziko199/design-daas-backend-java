@@ -15,6 +15,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * Exposes endpoints used by design-daas to check whether a given user is allowed
+ * to invoke a given function.
+ *
+ * <p>All endpoints require an admin-scoped bearer token ({@code SCOPE_admin}).</p>
+ */
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -32,11 +38,14 @@ public class PermissionController {
     @GetMapping("/permissions/{functionName}/{userId}")
     @PreAuthorize("hasAuthority('SCOPE_admin')")
     public ResponseEntity<PermissionResultDto> checkPermission(
-            @PathVariable String functionName,
-            @PathVariable Integer userId) {
+            @PathVariable String functionName, @PathVariable Integer userId) {
+
         log.info("GET /permissions/{}/{} — checking permission", functionName, userId);
+
         PermissionResultDto result = permissionService.checkPermission(userId, functionName);
+
         log.debug("GET /permissions/{}/{} — result={}", functionName, userId, result.getResult());
+
         return ResponseEntity.ok(result);
     }
 
@@ -53,30 +62,35 @@ public class PermissionController {
      * <p>If no {@code token} field is present in the body, falls back to the JWT from
      * the Authorization header (for backward compatibility with admin callers).</p>
      *
-     * <p>SEC-M5: {@code function_name} is validated before use — a missing or blank
+     * <p>{@code function_name} is validated before use — a missing or blank
      * value previously caused a {@code NullPointerException} at the JPA layer that
      * leaked through {@code GlobalExceptionHandler} as a 500 with internal details.</p>
      */
     @PostMapping("/permissions_info")
     @PreAuthorize("hasAuthority('SCOPE_admin')")
     public ResponseEntity<PermissionResultDto> permissionsInfo(
-            @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal Jwt authJwt) {
+            @RequestBody Map<String, String> body, @AuthenticationPrincipal Jwt authJwt) {
+
         String functionName = body.get("function_name");
+
         log.info("POST /permissions_info — functionName={}", functionName);
+
         if (functionName == null || functionName.isBlank()) {
             log.warn("POST /permissions_info — missing function_name");
             return ResponseEntity.badRequest().build();
         }
 
         Integer userId = resolveUserId(body.get("token"), authJwt);
+
         if (userId == null) {
             log.warn("POST /permissions_info — could not resolve user from token, returning deny");
             return ResponseEntity.ok(PermissionResultDto.deny(0, "unknown"));
         }
 
         PermissionResultDto result = permissionService.checkPermission(userId, functionName);
+
         log.debug("POST /permissions_info — userId={} function={} result={}", userId, functionName, result.getResult());
+
         return ResponseEntity.ok(result);
     }
 
@@ -117,27 +131,5 @@ public class PermissionController {
             return Integer.parseInt(authJwt.getSubject());
         }
         return null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Debug / ping endpoints (mirrors PHP OAuth2HttpController)
-    // -------------------------------------------------------------------------
-
-    /**
-     * GET /ping/user — returns 200 only when caller has the 'user' scope.
-     * Used by design-daas to verify user-scoped tokens.
-     */
-    @GetMapping("/ping/user")
-    @PreAuthorize("hasAuthority('SCOPE_user')")
-    public ResponseEntity<Void> pingUser() {
-        log.debug("GET /ping/user — OK");
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/ping/admin")
-    @PreAuthorize("hasAuthority('SCOPE_admin')")
-    public ResponseEntity<Void> pingAdmin() {
-        log.debug("GET /ping/admin — OK");
-        return ResponseEntity.ok().build();
     }
 }

@@ -19,11 +19,14 @@ import java.util.Map;
  * Exposes endpoints used by design-daas to check whether a given user is allowed
  * to invoke a given function.
  *
- * <p>All endpoints require an admin-scoped bearer token ({@code SCOPE_admin}).</p>
+ * <p>All endpoints require an admin-scoped bearer token ({@code SCOPE_admin}), enforced
+ * once at class level via {@link PreAuthorize} since every handler shares the same
+ * requirement.</p>
  */
 @RestController
 @RequiredArgsConstructor
 @Slf4j
+@PreAuthorize(Authorities.IS_ADMIN)
 public class PermissionController {
 
     private final PermissionService permissionService;
@@ -36,7 +39,6 @@ public class PermissionController {
      * user is allowed to call the given function.
      */
     @GetMapping("/permissions/{functionName}/{userId}")
-    @PreAuthorize("hasAuthority('SCOPE_admin')")
     public ResponseEntity<PermissionResultDto> checkPermission(
             @PathVariable String functionName, @PathVariable Integer userId) {
 
@@ -67,7 +69,6 @@ public class PermissionController {
      * leaked through {@code GlobalExceptionHandler} as a 500 with internal details.</p>
      */
     @PostMapping("/permissions_info")
-    @PreAuthorize("hasAuthority('SCOPE_admin')")
     public ResponseEntity<PermissionResultDto> permissionsInfo(
             @RequestBody Map<String, String> body, @AuthenticationPrincipal Jwt authJwt) {
 

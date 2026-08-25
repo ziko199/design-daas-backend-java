@@ -41,7 +41,10 @@ public class TokenCleanupService {
         Instant now = Instant.now();
         int deletedRefreshTokens = refreshTokenRepository.deleteExpired(now);
         int deletedAccessTokens = accessTokenRepository.deleteExpired(now);
-        log.info("Token cleanup completed — removed {} refresh token(s) and {} access token(s) expired before {}",
-                deletedRefreshTokens, deletedAccessTokens, now);
+        log.info(
+                "Token cleanup completed — removed {} refresh token(s) and {} access token(s) expired before {}",
+                deletedRefreshTokens,
+                deletedAccessTokens,
+                now);
     }
 }

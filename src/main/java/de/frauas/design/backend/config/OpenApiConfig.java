@@ -14,16 +14,17 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
-            .info(new Info()
-                .title("Design DaaS Backend API")
-                .version("1.0.0")
-                .description("Spring Boot backend replacing the PHP backend"))
-            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
-            .components(new Components()
-                .addSecuritySchemes("bearerAuth",
-                    new SecurityScheme()
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("JWT")));
+                .info(new Info()
+                        .title("Design DaaS Backend API")
+                        .version("1.0.0")
+                        .description("Spring Boot backend replacing the PHP backend"))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .components(new Components()
+                        .addSecuritySchemes(
+                                "bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
     }
 }

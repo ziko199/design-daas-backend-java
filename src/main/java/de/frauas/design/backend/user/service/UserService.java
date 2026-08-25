@@ -142,8 +142,7 @@ public class UserService {
     @Transactional
     public void deleteUser(Integer id) {
         log.debug("deleteUser — id={}", id);
-        userRepository.findUserById(id)
-            .orElseThrow(() -> new NoSuchElementException("User not found: " + id));
+        userRepository.findUserById(id).orElseThrow(() -> new NoSuchElementException("User not found: " + id));
         userRepository.deleteById(id);
         log.info("deleteUser — user deleted id={}", id);
     }
@@ -151,8 +150,8 @@ public class UserService {
     @Transactional
     public UserDto enableUser(Integer id) {
         log.debug("enableUser — id={}", id);
-        User user = userRepository.findUserById(id)
-            .orElseThrow(() -> new NoSuchElementException("User not found: " + id));
+        User user =
+                userRepository.findUserById(id).orElseThrow(() -> new NoSuchElementException("User not found: " + id));
         user.setEnabled(true);
         userRepository.save(user);
         log.info("enableUser — user enabled id={}", id);
@@ -162,8 +161,8 @@ public class UserService {
     @Transactional
     public UserDto disableUser(Integer id) {
         log.debug("disableUser — id={}", id);
-        User user = userRepository.findUserById(id)
-            .orElseThrow(() -> new NoSuchElementException("User not found: " + id));
+        User user =
+                userRepository.findUserById(id).orElseThrow(() -> new NoSuchElementException("User not found: " + id));
         user.setEnabled(false);
         userRepository.save(user);
         log.info("disableUser — user disabled id={}", id);
@@ -183,8 +182,9 @@ public class UserService {
     @Transactional(readOnly = true)
     public AdminDto getAdminById(Integer id) {
         log.debug("getAdminById — id={}", id);
-        Admin admin = userRepository.findAdminById(id)
-            .orElseThrow(() -> new NoSuchElementException("Admin not found: " + id));
+        Admin admin = userRepository
+                .findAdminById(id)
+                .orElseThrow(() -> new NoSuchElementException("Admin not found: " + id));
         return AdminDto.from(admin);
     }
 
@@ -210,8 +210,7 @@ public class UserService {
     @Transactional
     public void deleteAdmin(Integer id) {
         log.debug("deleteAdmin — id={}", id);
-        userRepository.findAdminById(id)
-            .orElseThrow(() -> new NoSuchElementException("Admin not found: " + id));
+        userRepository.findAdminById(id).orElseThrow(() -> new NoSuchElementException("Admin not found: " + id));
         userRepository.deleteById(id);
         log.info("deleteAdmin — admin deleted id={}", id);
     }
@@ -229,8 +228,9 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserGroupDto getUserGroupById(Integer id) {
         log.debug("getUserGroupById — id={}", id);
-        UserGroup group = userGroupRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
+        UserGroup group = userGroupRepository
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
         return UserGroupDto.from(group);
     }
 
@@ -248,8 +248,9 @@ public class UserService {
     @Transactional
     public UserGroupDto updateUserGroup(Integer id, UserGroupDto request) {
         log.debug("updateUserGroup — id={}", id);
-        UserGroup group = userGroupRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
+        UserGroup group = userGroupRepository
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
         if (request.getName() != null) group.setName(request.getName());
         if (request.getDescription() != null) group.setDescription(request.getDescription());
 
@@ -264,7 +265,9 @@ public class UserService {
 
             // Load the full desired set (only User entities — admins have no groups)
             List<User> desired = userRepository.findAllById(desiredIds).stream()
-                .filter(u -> u instanceof User).map(u -> (User) u).toList();
+                    .filter(u -> u instanceof User)
+                    .map(u -> (User) u)
+                    .toList();
 
             // Remove group from users who are no longer in the desired list
             for (User u : current) {
@@ -293,8 +296,7 @@ public class UserService {
     @Transactional
     public void deleteUserGroup(Integer id) {
         log.debug("deleteUserGroup — id={}", id);
-        userGroupRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
+        userGroupRepository.findById(id).orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + id));
         userGroupRepository.deleteById(id);
         log.info("deleteUserGroup — deleted id={}", id);
     }
@@ -313,10 +315,11 @@ public class UserService {
     @Transactional(readOnly = true)
     public void requestApplication(Integer userId, String application) {
         log.debug("requestApplication — userId={} application={}", userId, application);
-        var baseUser = userRepository.findById(userId)
-            .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
-        mailService.sendApplicationRequestEmail(baseUser.getEmail(), baseUser.getName(),
-                String.valueOf(baseUser.getId()), application);
+        var baseUser = userRepository
+                .findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        mailService.sendApplicationRequestEmail(
+                baseUser.getEmail(), baseUser.getName(), String.valueOf(baseUser.getId()), application);
         log.info("requestApplication — email sent for userId={} application={}", userId, application);
     }
 
@@ -327,7 +330,7 @@ public class UserService {
     private void validatePassword(String password) {
         if (password == null || !password.matches(PASSWORD_REGEX)) {
             throw new IllegalArgumentException(
-                "Password must be at least 8 characters and contain uppercase, lowercase, and a digit");
+                    "Password must be at least 8 characters and contain uppercase, lowercase, and a digit");
         }
     }
 

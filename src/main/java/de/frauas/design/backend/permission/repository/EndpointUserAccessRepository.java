@@ -8,6 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface EndpointUserAccessRepository extends JpaRepository<EndpointUserAccess, Integer> {
-    Optional<EndpointUserAccess> findByUserIdAndEndpoint_FunctionName(
-        Integer userId, String functionName);
+    Optional<EndpointUserAccess> findByUserIdAndEndpoint_FunctionName(Integer userId, String functionName);
 }

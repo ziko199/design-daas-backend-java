@@ -12,12 +12,13 @@ public class AdminDto {
     private String email;
     private String role;
 
+    /** Maps an {@link Admin} entity to its API representation. */
     public static AdminDto from(Admin admin) {
         return AdminDto.builder()
-            .id(admin.getId())
-            .name(admin.getName())
-            .email(admin.getEmail())
-            .role("admin")
-            .build();
+                .id(admin.getId())
+                .name(admin.getName())
+                .email(admin.getEmail())
+                .role("admin")
+                .build();
     }
 }

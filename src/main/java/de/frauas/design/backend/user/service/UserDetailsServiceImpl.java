@@ -26,13 +26,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         String scope = (user instanceof Admin) ? "admin" : "user";
 
         return org.springframework.security.core.userdetails.User.builder()
-            .username(user.getEmail())
-            .password(user.getPassword())
-            .authorities(List.of(new SimpleGrantedAuthority("SCOPE_" + scope)))
-            .accountExpired(false)
-            .accountLocked(false)
-            .credentialsExpired(false)
-            .disabled(!user.isEnabled())
-            .build();
+                .username(user.getEmail())
+                .password(user.getPassword())
+                .authorities(List.of(new SimpleGrantedAuthority("SCOPE_" + scope)))
+                .accountExpired(false)
+                .accountLocked(false)
+                .credentialsExpired(false)
+                .disabled(!user.isEnabled())
+                .build();
     }
 }

@@ -25,9 +25,8 @@ public class PatchUserRequest {
 
     /** Same regex as CreateUserRequest / UserService.PASSWORD_REGEX. */
     @Pattern(
-        regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
-        message = "password must be at least 8 characters and contain uppercase, lowercase, and a digit"
-    )
+            regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
+            message = "password must be at least 8 characters and contain uppercase, lowercase, and a digit")
     private String password;
 
     private List<Integer> groups;

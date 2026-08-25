@@ -35,12 +35,9 @@ public class MailService {
         msg.setFrom(fromAddress);
         msg.setTo(toEmail);
         msg.setSubject("DESIGN DaaS — Email Verification");
-        msg.setText(
-            "Welcome to DESIGN DaaS!\n\n" +
-            "Your registration code is: " + registrationCode + "\n\n" +
-            "This code expires in 24 hours.\n\n" +
-            "Use POST /user/validate_email with your email and this code to activate your account."
-        );
+        msg.setText("Welcome to DESIGN DaaS!\n\n" + "Your registration code is: "
+                + registrationCode + "\n\n" + "This code expires in 24 hours.\n\n"
+                + "Use POST /user/validate_email with your email and this code to activate your account.");
         mailSender.send(msg);
         log.info("Registration code sent to {}", toEmail);
     }
@@ -54,11 +51,10 @@ public class MailService {
      * @param userId      the requesting user's ID (as string)
      * @param application the application name being requested
      */
-    public void sendApplicationRequestEmail(String userEmail, String userName,
-                                            String userId, String application) {
+    public void sendApplicationRequestEmail(String userEmail, String userName, String userId, String application) {
         if (!mailEnabled) {
-            log.info("Mail disabled — application request from user {} (id={}) for: {}",
-                    userEmail, userId, application);
+            log.info(
+                    "Mail disabled — application request from user {} (id={}) for: {}", userEmail, userId, application);
             return;
         }
         SimpleMailMessage msg = new SimpleMailMessage();
@@ -66,13 +62,10 @@ public class MailService {
         msg.setTo(fromAddress); // send to the admin/system address
         msg.setReplyTo(userEmail);
         msg.setSubject("DESIGN DaaS — Application Access Request");
-        msg.setText(
-            "A user has requested access to an application.\n\n" +
-            "User: " + userName + " (ID: " + userId + ")\n" +
-            "Email: " + userEmail + "\n" +
-            "Application: " + application + "\n\n" +
-            "Please review and configure the appropriate permissions."
-        );
+        msg.setText("A user has requested access to an application.\n\n" + "User: "
+                + userName + " (ID: " + userId + ")\n" + "Email: "
+                + userEmail + "\n" + "Application: "
+                + application + "\n\n" + "Please review and configure the appropriate permissions.");
         mailSender.send(msg);
         log.info("Application request email sent for user {} requesting {}", userEmail, application);
     }

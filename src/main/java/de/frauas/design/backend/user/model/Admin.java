@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+/** An administrator account; enabled by default and not subject to email verification. */
 @Entity
 @DiscriminatorValue("admin")
 @Getter

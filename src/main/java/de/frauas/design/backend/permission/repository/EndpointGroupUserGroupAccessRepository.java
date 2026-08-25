@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface EndpointGroupUserGroupAccessRepository
-        extends JpaRepository<EndpointGroupUserGroupAccess, Integer> {
+public interface EndpointGroupUserGroupAccessRepository extends JpaRepository<EndpointGroupUserGroupAccess, Integer> {
 
     List<EndpointGroupUserGroupAccess> findByUserGroupIdIn(List<Integer> userGroupIds);
 

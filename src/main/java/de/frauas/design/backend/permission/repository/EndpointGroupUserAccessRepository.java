@@ -7,8 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface EndpointGroupUserAccessRepository
-        extends JpaRepository<EndpointGroupUserAccess, Integer> {
+public interface EndpointGroupUserAccessRepository extends JpaRepository<EndpointGroupUserAccess, Integer> {
 
     List<EndpointGroupUserAccess> findByUserId(Integer userId);
 }

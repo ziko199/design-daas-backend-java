@@ -11,6 +11,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Data-access for {@link BaseUser} and its subtypes ({@link User}, {@link Admin}).
+ * Uses single-table inheritance, so most queries filter by concrete
+ * subtype via JPQL.
+ */
 @Repository
 public interface UserRepository extends JpaRepository<BaseUser, Integer> {
 

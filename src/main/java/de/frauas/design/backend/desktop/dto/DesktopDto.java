@@ -21,10 +21,10 @@ public class DesktopDto {
 
     public static DesktopDto from(Desktop d) {
         return DesktopDto.builder()
-            .id(d.getId())
-            .name(d.getName())
-            .description(d.getDescription())
-            .groups(d.getDesktopGroups().stream().map(g -> g.getId()).toList())
-            .build();
+                .id(d.getId())
+                .name(d.getName())
+                .description(d.getDescription())
+                .groups(d.getDesktopGroups().stream().map(g -> g.getId()).toList())
+                .build();
     }
 }

@@ -7,7 +7,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -39,23 +43,5 @@ public class DesktopController {
     public ResponseEntity<DesktopDto> getDesktopById(@PathVariable Integer id) {
         log.info("GET /desktop/{} — fetching desktop", id);
         return ResponseEntity.ok(desktopService.getDesktopById(id));
-    }
-
-    @PutMapping("/desktop/{id}")
-    public ResponseEntity<DesktopDto> updateDesktop(
-            @PathVariable Integer id,
-            @RequestBody DesktopDto request) {
-        log.info("PUT /desktop/{} — updating desktop", id);
-        DesktopDto result = desktopService.updateDesktop(id, request);
-        log.info("PUT /desktop/{} — updated successfully", id);
-        return ResponseEntity.ok(result);
-    }
-
-    @DeleteMapping("/desktop/{id}")
-    public ResponseEntity<Void> deleteDesktop(@PathVariable Integer id) {
-        log.info("DELETE /desktop/{} — deleting desktop", id);
-        desktopService.deleteDesktop(id);
-        log.info("DELETE /desktop/{} — deleted successfully", id);
-        return ResponseEntity.ok().build();
     }
 }

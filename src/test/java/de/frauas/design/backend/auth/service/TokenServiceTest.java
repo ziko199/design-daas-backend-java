@@ -34,36 +34,61 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TokenService")
 class TokenServiceTest {
 
-    @Mock UserRepository userRepository;
-    @Mock PasswordEncoder passwordEncoder;
-    @Mock JwtEncoder jwtEncoder;
-    @Mock RefreshTokenRepository refreshTokenRepository;
-    @Mock AccessTokenRepository accessTokenRepository;
-    @Mock Jwt encodedJwt;
+    private static final String EMAIL = "user@example.com";
+    private static final String PASSWORD = "correct-password";
+    private static final String HASH = "$2a$10$hashedvalue";
+
+    @Mock
+    UserRepository userRepository;
+
+    @Mock
+    PasswordEncoder passwordEncoder;
+
+    @Mock
+    JwtEncoder jwtEncoder;
+
+    @Mock
+    RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    AccessTokenRepository accessTokenRepository;
+
+    @Mock
+    Jwt encodedJwt;
 
     TokenService tokenService;
-
-    private static final String EMAIL    = "user@example.com";
-    private static final String PASSWORD = "correct-password";
-    private static final String HASH     = "$2a$10$hashedvalue";
 
     @BeforeEach
     void setUp() {
         AccountLockoutService accountLockoutService = new AccountLockoutService(userRepository);
         ScopeResolver scopeResolver = new ScopeResolver();
-        TokenIssuer tokenIssuer = new TokenIssuer(jwtEncoder, refreshTokenRepository, accessTokenRepository,
-                "http://localhost:8080", 3600L, 30L);
+        TokenIssuer tokenIssuer = new TokenIssuer(
+                jwtEncoder, refreshTokenRepository, accessTokenRepository, "http://localhost:8080", 3600L, 30L);
 
-        tokenService = new TokenService(userRepository, passwordEncoder, refreshTokenRepository,
-                accessTokenRepository, accountLockoutService, scopeResolver, tokenIssuer);
+        tokenService = new TokenService(
+                userRepository,
+                passwordEncoder,
+                refreshTokenRepository,
+                accessTokenRepository,
+                accountLockoutService,
+                scopeResolver,
+                tokenIssuer);
     }
 
     private User user() {
@@ -347,8 +372,7 @@ class TokenServiceTest {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
 
-            TokenResponseDto result = tokenService.grantToken(
-                    GrantRequest.of("password", EMAIL, PASSWORD, null, ""));
+            TokenResponseDto result = tokenService.grantToken(GrantRequest.of("password", EMAIL, PASSWORD, null, ""));
 
             assertThat(result.scope()).isEqualTo("user");
         }
@@ -366,8 +390,8 @@ class TokenServiceTest {
             when(refreshTokenRepository.findActiveByTokenValue("valid-token")).thenReturn(Optional.of(rt));
             when(userRepository.findById(1)).thenReturn(Optional.of(user));
 
-            TokenResponseDto result = tokenService.grantToken(
-                    GrantRequest.of("refresh_token", null, null, "valid-token", null));
+            TokenResponseDto result =
+                    tokenService.grantToken(GrantRequest.of("refresh_token", null, null, "valid-token", null));
 
             assertThat(result.refreshToken()).isNotEqualTo("valid-token");
         }

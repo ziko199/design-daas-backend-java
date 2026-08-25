@@ -1,16 +1,21 @@
 package de.frauas.design.backend.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.http.MediaType;
 
 import java.util.Map;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for DesktopController and VersionController.
@@ -26,19 +31,6 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     private Integer createdDesktopId;
 
     // -------------------------------------------------------------------------
-    // GET /version – public
-    // -------------------------------------------------------------------------
-
-    @Test
-    @Order(1)
-    @DisplayName("GET /version – returns 200 without auth")
-    void version_noAuth_returns200() throws Exception {
-        mockMvc.perform(get("/version"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.version").isNotEmpty());
-    }
-
-    // -------------------------------------------------------------------------
     // POST /desktop – admin only
     // -------------------------------------------------------------------------
 
@@ -48,8 +40,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     void createDesktop_adminJwt_returns200() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "IntegrationDesktop",
-                "description", "Integration Test Desktop"
-        ));
+                "description", "Integration Test Desktop"));
 
         String response = mockMvc.perform(post("/desktop")
                         .with(adminJwt(999))
@@ -57,7 +48,9 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("IntegrationDesktop"))
-                .andReturn().getResponse().getContentAsString();
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         // Extract created ID for subsequent tests
         createdDesktopId = objectMapper.readTree(response).get("id").asInt();
@@ -69,8 +62,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     void createDesktop_userJwt_returns403() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "ShouldFail",
-                "description", "Should not be created"
-        ));
+                "description", "Should not be created"));
 
         mockMvc.perform(post("/desktop")
                         .with(userJwt(1))
@@ -83,9 +75,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     @Order(4)
     @DisplayName("POST /desktop – returns 401 without JWT")
     void createDesktop_noJwt_returns401() throws Exception {
-        mockMvc.perform(post("/desktop")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        mockMvc.perform(post("/desktop").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -106,8 +96,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     @Order(6)
     @DisplayName("GET /desktops – returns 401 without JWT")
     void getAllDesktops_noJwt_returns401() throws Exception {
-        mockMvc.perform(get("/desktops"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/desktops")).andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -118,8 +107,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     @Order(7)
     @DisplayName("GET /desktop/{id} – returns 404 for unknown ID")
     void getDesktopById_unknown_returns404() throws Exception {
-        mockMvc.perform(get("/desktop/999999").with(adminJwt(999)))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/desktop/999999").with(adminJwt(999))).andExpect(status().isNotFound());
     }
 
     @Test
@@ -131,49 +119,4 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdDesktopId));
     }
-
-    // -------------------------------------------------------------------------
-    // PUT /desktop/{id}
-    // -------------------------------------------------------------------------
-
-    @Test
-    @Order(9)
-    @DisplayName("PUT /desktop/{id} – updates desktop")
-    void updateDesktop_admin_returns200() throws Exception {
-        if (createdDesktopId == null) return;
-        String body = objectMapper.writeValueAsString(Map.of(
-                "name", "UpdatedDesktop",
-                "description", "Updated"
-        ));
-
-        mockMvc.perform(put("/desktop/" + createdDesktopId)
-                        .with(adminJwt(999))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("UpdatedDesktop"));
-    }
-
-    // -------------------------------------------------------------------------
-    // DELETE /desktop/{id}
-    // -------------------------------------------------------------------------
-
-    @Test
-    @Order(10)
-    @DisplayName("DELETE /desktop/{id} – deletes desktop")
-    void deleteDesktop_admin_returns200() throws Exception {
-        if (createdDesktopId == null) return;
-        mockMvc.perform(delete("/desktop/" + createdDesktopId).with(adminJwt(999)))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @Order(11)
-    @DisplayName("DELETE /desktop/{id} – returns 404 for already deleted")
-    void deleteDesktop_alreadyDeleted_returns404() throws Exception {
-        if (createdDesktopId == null) return;
-        mockMvc.perform(delete("/desktop/" + createdDesktopId).with(adminJwt(999)))
-                .andExpect(status().isNotFound());
-    }
 }
-

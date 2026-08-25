@@ -4,17 +4,21 @@ import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.repository.UserRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for POST /oauth2/user/token.
@@ -23,14 +27,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("TokenController Integration")
 class TokenControllerIntegrationTest extends BaseIntegrationTest {
 
-    @Autowired UserRepository userRepository;
-    @Autowired PasswordEncoder passwordEncoder;
-    @Autowired RefreshTokenRepository refreshTokenRepository;
-    @Autowired AccessTokenRepository accessTokenRepository;
+    private static final String EMAIL = "token.test@example.com";
+    private static final String PASSWORD = "Token1234!";
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    @Autowired
+    RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    AccessTokenRepository accessTokenRepository;
 
     private User testUser;
-    private static final String EMAIL    = "token.test@example.com";
-    private static final String PASSWORD = "Token1234!";
 
     @BeforeAll
     void setupUser() {
@@ -41,7 +53,7 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
         testUser.setEmail(EMAIL);
         testUser.setPassword(passwordEncoder.encode(PASSWORD));
         testUser.setEnabled(true);
-        testUser = (User) userRepository.save(testUser);
+        testUser = userRepository.save(testUser);
     }
 
     @AfterAll
@@ -79,13 +91,16 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                         .param("username", EMAIL)
                         .param("password", PASSWORD))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         // Decode the JWT and extract jti
         String accessToken = extractJsonField(response, "access_token");
-        String jtiFromJwt  = extractJtiFromJwt(accessToken);
+        String jtiFromJwt = extractJtiFromJwt(accessToken);
 
-        assertTrue(accessTokenRepository.findByJti(jtiFromJwt).isPresent(),
+        assertTrue(
+                accessTokenRepository.findByJti(jtiFromJwt).isPresent(),
                 "Issued access token must be persisted with its jti");
     }
 
@@ -156,7 +171,9 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                         .param("grant_type", "password")
                         .param("username", EMAIL)
                         .param("password", PASSWORD))
-                .andReturn().getResponse().getContentAsString();
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         String refreshToken = extractJsonField(response, "refresh_token");
 
@@ -179,7 +196,9 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                         .param("grant_type", "password")
                         .param("username", EMAIL)
                         .param("password", PASSWORD))
-                .andReturn().getResponse().getContentAsString();
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         String originalRefreshToken = extractJsonField(firstResponse, "refresh_token");
 
@@ -189,7 +208,9 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                         .param("grant_type", "refresh_token")
                         .param("refresh_token", originalRefreshToken))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         String newRefreshToken = extractJsonField(refreshResponse, "refresh_token");
         assertNotEquals(originalRefreshToken, newRefreshToken, "Refresh token must be rotated");
@@ -245,7 +266,7 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
     private String extractJsonField(String json, String field) {
         String key = "\"" + field + "\":\"";
         int start = json.indexOf(key) + key.length();
-        int end   = json.indexOf("\"", start);
+        int end = json.indexOf("\"", start);
         return json.substring(start, end);
     }
 
@@ -261,7 +282,7 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
         // Extract jti field
         String key = "\"jti\":\"";
         int start = json.indexOf(key) + key.length();
-        int end   = json.indexOf("\"", start);
+        int end = json.indexOf("\"", start);
         return json.substring(start, end);
     }
 }

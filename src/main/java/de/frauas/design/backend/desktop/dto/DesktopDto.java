@@ -1,6 +1,7 @@
 package de.frauas.design.backend.desktop.dto;
 
 import de.frauas.design.backend.desktop.model.Desktop;
+import de.frauas.design.backend.desktop.model.DesktopGroup;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,7 +25,7 @@ public class DesktopDto {
                 .id(d.getId())
                 .name(d.getName())
                 .description(d.getDescription())
-                .groups(d.getDesktopGroups().stream().map(g -> g.getId()).toList())
+                .groups(d.getDesktopGroups().stream().map(DesktopGroup::getId).toList())
                 .build();
     }
 }

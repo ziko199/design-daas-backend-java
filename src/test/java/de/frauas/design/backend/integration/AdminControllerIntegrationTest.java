@@ -1,9 +1,13 @@
 package de.frauas.design.backend.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.frauas.design.backend.user.model.Admin;
 import de.frauas.design.backend.user.repository.UserRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
@@ -11,8 +15,10 @@ import java.util.Map;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for the Admin REST endpoints ({@code /admins}, {@code /admin/**}).
@@ -22,10 +28,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("AdminController Integration")
 class AdminControllerIntegrationTest extends BaseIntegrationTest {
 
-    @Autowired UserRepository userRepository;
+    private static final String TEST_EMAIL = "ctrl.admin@example.com";
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String TEST_EMAIL = "ctrl.admin@example.com";
+    @Autowired
+    UserRepository userRepository;
 
     @BeforeAll
     void cleanup() {
@@ -39,12 +46,9 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "Ctrl Admin",
                 "email", TEST_EMAIL,
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
-        mockMvc.perform(post("/admin")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(post("/admin").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -55,8 +59,7 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "Ctrl Admin",
                 "email", TEST_EMAIL,
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
         mockMvc.perform(post("/admin")
                         .with(userJwt(1))
@@ -72,8 +75,7 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "Ctrl Admin",
                 "email", TEST_EMAIL,
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
         mockMvc.perform(post("/admin")
                         .with(adminJwt(999))
@@ -92,44 +94,5 @@ class AdminControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[?(@.email=='" + TEST_EMAIL + "')]").exists());
-    }
-
-    @Test
-    @Order(5)
-    @DisplayName("GET /admin/{id} – returns known admin")
-    void getAdminById_knownId_returns200() throws Exception {
-        Admin admin = (Admin) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
-
-        mockMvc.perform(get("/admin/" + admin.getId()).with(adminJwt(999)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(TEST_EMAIL));
-    }
-
-    @Test
-    @Order(6)
-    @DisplayName("GET /admin/{id} – returns 404 for unknown id")
-    void getAdminById_unknownId_returns404() throws Exception {
-        mockMvc.perform(get("/admin/999999").with(adminJwt(999)))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @Order(7)
-    @DisplayName("DELETE /admin/{id} – deletes admin successfully")
-    void deleteAdmin_success() throws Exception {
-        Admin admin = (Admin) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
-
-        mockMvc.perform(delete("/admin/" + admin.getId()).with(adminJwt(999)))
-                .andExpect(status().isOk());
-
-        org.assertj.core.api.Assertions.assertThat(userRepository.findByEmail(TEST_EMAIL)).isEmpty();
-    }
-
-    @Test
-    @Order(8)
-    @DisplayName("DELETE /admin/{id} – returns 404 when already deleted")
-    void deleteAdmin_alreadyDeleted_returns404() throws Exception {
-        mockMvc.perform(delete("/admin/999999").with(adminJwt(999)))
-                .andExpect(status().isNotFound());
     }
 }

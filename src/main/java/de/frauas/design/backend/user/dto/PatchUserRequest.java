@@ -11,7 +11,7 @@ import java.util.List;
  * Partial-update request for an existing user.
  * All fields are optional — a {@code null} value means "do not change".
  *
- * <p>SEC-M4: Validation constraints are applied so that if a field IS provided
+ * <p>Validation constraints are applied so that if a field IS provided
  * it must still satisfy the same business rules as on creation.</p>
  */
 @Data

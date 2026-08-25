@@ -20,34 +20,25 @@ public final class MockJwt {
     /** Creates a mock JWT for a user-role principal with the given userId. */
     public static RequestPostProcessor userJwt(Integer userId) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt
-                        .jti(UUID.randomUUID().toString())
+                .jwt(jwt -> jwt.jti(UUID.randomUUID().toString())
                         .subject(String.valueOf(userId))
                         .claim("scope", "user")
                         .claim("email", "user" + userId + "@test.com")
                         .claim("name", "Test User " + userId)
                         .issuedAt(Instant.now())
-                        .expiresAt(Instant.now().plusSeconds(3600))
-                );
+                        .expiresAt(Instant.now().plusSeconds(3600)));
     }
 
     /** Creates a mock JWT for an admin-role principal. */
     public static RequestPostProcessor adminJwt(Integer userId) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt
-                        .jti(UUID.randomUUID().toString())
+                .jwt(jwt -> jwt.jti(UUID.randomUUID().toString())
                         .subject(String.valueOf(userId))
                         .claim("scope", "admin")
                         .claim("email", "admin" + userId + "@test.com")
                         .claim("name", "Admin " + userId)
                         .issuedAt(Instant.now())
-                        .expiresAt(Instant.now().plusSeconds(3600))
-                )
-                .authorities(
-                        new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_admin")
-                );
+                        .expiresAt(Instant.now().plusSeconds(3600)))
+                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("SCOPE_admin"));
     }
 }
-
-
-

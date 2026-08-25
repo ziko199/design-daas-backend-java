@@ -10,7 +10,6 @@ package de.frauas.design.backend.security;
 public final class Authorities {
 
     public static final String SCOPE_ADMIN = "SCOPE_admin";
-    public static final String SCOPE_EXPERT = "SCOPE_expert";
     public static final String SCOPE_USER = "SCOPE_user";
 
     /**
@@ -21,8 +20,7 @@ public final class Authorities {
     /**
      * Ready-to-use {@code @PreAuthorize} expression allowing any authenticated scope.
      */
-    public static final String IS_ANY_USER =
-            "hasAnyAuthority('" + SCOPE_USER + "', '" + SCOPE_EXPERT + "', '" + SCOPE_ADMIN + "')";
+    public static final String IS_ANY_USER = "hasAnyAuthority('" + SCOPE_USER + "', '" + SCOPE_ADMIN + "')";
 
     private Authorities() {}
 }

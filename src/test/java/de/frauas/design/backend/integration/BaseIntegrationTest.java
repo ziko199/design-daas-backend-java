@@ -26,18 +26,16 @@ import org.springframework.web.context.WebApplicationContext;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class BaseIntegrationTest {
 
-    @Autowired
-    private WebApplicationContext wac;
-
     /** Fully-configured MockMvc shared by every subclass test method. */
     protected MockMvc mockMvc;
 
+    @Autowired
+    private WebApplicationContext wac;
+
     @BeforeAll
     void initMockMvc() {
-        mockMvc = MockMvcBuilders
-                .webAppContextSetup(wac)
+        mockMvc = MockMvcBuilders.webAppContextSetup(wac)
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
     }
 }
-

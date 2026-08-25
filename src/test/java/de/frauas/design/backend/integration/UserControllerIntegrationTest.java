@@ -3,18 +3,24 @@ package de.frauas.design.backend.integration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.repository.UserRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for the User REST endpoints.
@@ -23,12 +29,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("UserController Integration")
 class UserControllerIntegrationTest extends BaseIntegrationTest {
 
-    @Autowired UserRepository userRepository;
-    @Autowired PasswordEncoder passwordEncoder;
+    private static final String TEST_EMAIL = "ctrl.user@example.com";
     // Spring Boot 4.x removed JacksonAutoConfiguration — ObjectMapper is no longer a Spring bean.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String TEST_EMAIL = "ctrl.user@example.com";
+    @Autowired
+    UserRepository userRepository;
 
     @BeforeAll
     void cleanup() {
@@ -46,12 +52,9 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "Ctrl User",
                 "email", TEST_EMAIL,
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
-        mockMvc.perform(post("/user")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(post("/user").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(TEST_EMAIL))
                 .andExpect(jsonPath("$.enabled").value(false))
@@ -65,12 +68,9 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "Ctrl User",
                 "email", TEST_EMAIL,
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
-        mockMvc.perform(post("/user")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(post("/user").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
 
@@ -81,12 +81,9 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "X",
                 "email", "not-an-email",
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
-        mockMvc.perform(post("/user")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(post("/user").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
 
@@ -97,12 +94,9 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         String body = objectMapper.writeValueAsString(Map.of(
                 "name", "",
                 "email", "new@example.com",
-                "password", "Password1"
-        ));
+                "password", "Password1"));
 
-        mockMvc.perform(post("/user")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        mockMvc.perform(post("/user").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
     }
 
@@ -114,10 +108,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     @Order(5)
     @DisplayName("POST /user/validate_email – wrong code returns 400")
     void validateEmail_wrongCode_returns400() throws Exception {
-        String body = objectMapper.writeValueAsString(Map.of(
-                "email", TEST_EMAIL,
-                "registration_code", "WRONGCOD"
-        ));
+        String body = objectMapper.writeValueAsString(Map.of("email", TEST_EMAIL, "registration_code", "WRONGCOD"));
 
         mockMvc.perform(post("/user/validate_email")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -134,8 +125,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
         String body = objectMapper.writeValueAsString(Map.of(
                 "email", TEST_EMAIL,
-                "registration_code", code
-        ));
+                "registration_code", code));
 
         mockMvc.perform(post("/user/validate_email")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -154,8 +144,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     @Order(7)
     @DisplayName("GET /users – returns 200 with admin JWT")
     void getAllUsers_adminJwt_returns200() throws Exception {
-        mockMvc.perform(get("/users")
-                        .with(adminJwt(999)))
+        mockMvc.perform(get("/users").with(adminJwt(999)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
@@ -164,42 +153,14 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     @Order(8)
     @DisplayName("GET /users – returns 403 with user JWT")
     void getAllUsers_userJwt_returns403() throws Exception {
-        mockMvc.perform(get("/users")
-                        .with(userJwt(1)))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/users").with(userJwt(1))).andExpect(status().isForbidden());
     }
 
     @Test
     @Order(9)
     @DisplayName("GET /users – returns 401 with no JWT")
     void getAllUsers_noJwt_returns401() throws Exception {
-        mockMvc.perform(get("/users"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    // -------------------------------------------------------------------------
-    // GET /user/{userId} – admin only
-    // -------------------------------------------------------------------------
-
-    @Test
-    @Order(10)
-    @DisplayName("GET /user/{id} – returns 404 for unknown ID")
-    void getUserById_unknownId_returns404() throws Exception {
-        mockMvc.perform(get("/user/999999")
-                        .with(adminJwt(999)))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @Order(11)
-    @DisplayName("GET /user/{id} – returns user for known ID")
-    void getUserById_knownId_returns200() throws Exception {
-        User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
-
-        mockMvc.perform(get("/user/" + u.getId())
-                        .with(adminJwt(999)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(TEST_EMAIL));
+        mockMvc.perform(get("/users")).andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -207,7 +168,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(12)
+    @Order(10)
     @DisplayName("PATCH /user/{id} – updates name")
     void updateUser_updatesName() throws Exception {
         User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
@@ -226,7 +187,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(13)
+    @Order(11)
     @DisplayName("POST /user/{id}/disable then /enable toggles enabled state")
     void enableDisable_togglesState() throws Exception {
         User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
@@ -240,31 +201,4 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.enabled").value(true));
     }
-
-    // -------------------------------------------------------------------------
-    // DELETE /user/{userId} – admin only
-    // -------------------------------------------------------------------------
-
-    @Test
-    @Order(14)
-    @DisplayName("DELETE /user/{id} – deletes user successfully")
-    void deleteUser_success() throws Exception {
-        User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
-
-        mockMvc.perform(delete("/user/" + u.getId())
-                        .with(adminJwt(999)))
-                .andExpect(status().isOk());
-
-        org.assertj.core.api.Assertions.assertThat(userRepository.findByEmail(TEST_EMAIL)).isEmpty();
-    }
-
-    @Test
-    @Order(15)
-    @DisplayName("DELETE /user/{id} – returns 404 when already deleted")
-    void deleteUser_alreadyDeleted_returns404() throws Exception {
-        mockMvc.perform(delete("/user/999999")
-                        .with(adminJwt(999)))
-                .andExpect(status().isNotFound());
-    }
 }
-

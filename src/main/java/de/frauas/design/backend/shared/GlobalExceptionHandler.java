@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 /**
  * Centralised exception → HTTP response mapping.
  *
- * <p>SEC-M2: The generic handler never exposes raw exception messages to callers.
- * Instead it generates a correlation ID, logs the full exception server-side, and
+ * <p>The generic handler never exposes raw exception messages to callers.
+ * Instead, it generates a correlation ID, logs the full exception server-side, and
  * returns only the correlation ID so that operators can locate the log entry.</p>
  */
 @Slf4j

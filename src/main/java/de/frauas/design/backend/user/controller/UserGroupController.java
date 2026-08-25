@@ -1,21 +1,24 @@
 package de.frauas.design.backend.user.controller;
 
-import de.frauas.design.backend.desktop.dto.DesktopGroupDto;
-import de.frauas.design.backend.desktop.model.DesktopGroup;
-import de.frauas.design.backend.desktop.repository.DesktopGroupRepository;
 import de.frauas.design.backend.user.dto.UserGroupDto;
-import de.frauas.design.backend.user.model.UserGroup;
-import de.frauas.design.backend.user.repository.UserGroupRepository;
 import de.frauas.design.backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
+/**
+ * REST endpoints for user-group CRUD and desktop-group association management.
+ * All endpoints require the {@code SCOPE_admin} authority (enforced class-wide).
+ */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -23,8 +26,6 @@ import java.util.NoSuchElementException;
 public class UserGroupController {
 
     private final UserService userService;
-    private final UserGroupRepository userGroupRepository;
-    private final DesktopGroupRepository desktopGroupRepository;
 
     @GetMapping("/user_groups")
     public ResponseEntity<List<UserGroupDto>> getAllUserGroups() {
@@ -45,65 +46,21 @@ public class UserGroupController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/user_group/{id}")
-    public ResponseEntity<UserGroupDto> getUserGroupById(@PathVariable Integer id) {
-        log.info("GET /user_group/{} — fetching user group", id);
-        return ResponseEntity.ok(userService.getUserGroupById(id));
-    }
-
-    @PutMapping("/user_group/{id}")
+    /**
+     * Updates a user group. Both PUT and PATCH are intentionally mapped to the same
+     * handler: this endpoint always performs a partial (null-safe) update — omitted
+     * fields are left unchanged — regardless of which HTTP method is used.
+     *
+     * <p>Note: stacking {@code @PutMapping} and {@code @PatchMapping} on one method does
+     * NOT work in Spring MVC (only the first {@code @RequestMapping} meta-annotation is
+     * honoured, so PATCH would 405) — {@code @RequestMapping(method = {...})} must be
+     * used instead to register both HTTP methods.</p>
+     */
     @PatchMapping("/user_group/{id}")
-    public ResponseEntity<UserGroupDto> updateUserGroup(
-            @PathVariable Integer id,
-            @RequestBody UserGroupDto request) {
-        log.info("PUT/PATCH /user_group/{} — updating user group", id);
+    public ResponseEntity<UserGroupDto> updateUserGroup(@PathVariable Integer id, @RequestBody UserGroupDto request) {
+        log.info("PATCH /user_group/{} — updating user group", id);
         UserGroupDto result = userService.updateUserGroup(id, request);
-        log.info("PUT/PATCH /user_group/{} — updated successfully", id);
+        log.info("PATCH /user_group/{} — updated successfully", id);
         return ResponseEntity.ok(result);
-    }
-
-    @DeleteMapping("/user_group/{id}")
-    public ResponseEntity<Void> deleteUserGroup(@PathVariable Integer id) {
-        log.info("DELETE /user_group/{} — deleting user group", id);
-        userService.deleteUserGroup(id);
-        log.info("DELETE /user_group/{} — deleted successfully", id);
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/user_group/{userGroupId}/{desktopGroupId}")
-    public ResponseEntity<?> associateDesktopGroup(
-            @PathVariable Integer userGroupId,
-            @PathVariable Integer desktopGroupId) {
-        log.info("POST /user_group/{}/{} — associating desktop group", userGroupId, desktopGroupId);
-        UserGroup ug = userGroupRepository.findById(userGroupId)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + userGroupId));
-        DesktopGroup dg = desktopGroupRepository.findById(desktopGroupId)
-            .orElseThrow(() -> new NoSuchElementException("DesktopGroup not found: " + desktopGroupId));
-        if (ug.getDesktopGroups().contains(dg)) {
-            log.warn("POST /user_group/{}/{} — already associated (conflict)", userGroupId, desktopGroupId);
-            return ResponseEntity.status(409).body("Desktop group already in user group");
-        }
-        ug.getDesktopGroups().add(dg);
-        userGroupRepository.save(ug);
-        log.info("POST /user_group/{}/{} — association created", userGroupId, desktopGroupId);
-        List<DesktopGroupDto> updatedList = ug.getDesktopGroups().stream()
-            .map(DesktopGroupDto::from)
-            .toList();
-        return ResponseEntity.ok(updatedList);
-    }
-
-    @DeleteMapping("/user_group/{userGroupId}/{desktopGroupId}")
-    public ResponseEntity<Void> disassociateDesktopGroup(
-            @PathVariable Integer userGroupId,
-            @PathVariable Integer desktopGroupId) {
-        log.info("DELETE /user_group/{}/{} — removing desktop group association", userGroupId, desktopGroupId);
-        UserGroup ug = userGroupRepository.findById(userGroupId)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + userGroupId));
-        DesktopGroup dg = desktopGroupRepository.findById(desktopGroupId)
-            .orElseThrow(() -> new NoSuchElementException("DesktopGroup not found: " + desktopGroupId));
-        ug.getDesktopGroups().remove(dg);
-        userGroupRepository.save(ug);
-        log.info("DELETE /user_group/{}/{} — association removed", userGroupId, desktopGroupId);
-        return ResponseEntity.ok().build();
     }
 }

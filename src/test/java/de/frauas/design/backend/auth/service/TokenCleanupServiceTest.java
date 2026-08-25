@@ -12,15 +12,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TokenCleanupService")
 class TokenCleanupServiceTest {
 
-    @Mock RefreshTokenRepository refreshTokenRepository;
-    @Mock AccessTokenRepository accessTokenRepository;
+    @Mock
+    RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    AccessTokenRepository accessTokenRepository;
 
     @InjectMocks
     TokenCleanupService tokenCleanupService;
@@ -35,7 +38,7 @@ class TokenCleanupServiceTest {
         Instant after = Instant.now();
 
         ArgumentCaptor<Instant> refreshCutoff = ArgumentCaptor.forClass(Instant.class);
-        ArgumentCaptor<Instant> accessCutoff  = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Instant> accessCutoff = ArgumentCaptor.forClass(Instant.class);
         verify(refreshTokenRepository).deleteExpired(refreshCutoff.capture());
         verify(accessTokenRepository).deleteExpired(accessCutoff.capture());
 

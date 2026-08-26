@@ -1,4 +1,4 @@
-package de.frauas.design.backend.security;
+package de.frauas.design.backend.shared.security;
 
 /**
  * Central place for the OAuth2 scope/authority string constants used across

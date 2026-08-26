@@ -3,7 +3,7 @@ package de.frauas.design.backend.permission.controller;
 import de.frauas.design.backend.auth.service.JwtUserResolver;
 import de.frauas.design.backend.permission.dto.PermissionResultDto;
 import de.frauas.design.backend.permission.service.PermissionService;
-import de.frauas.design.backend.security.Authorities;
+import de.frauas.design.backend.shared.security.Authorities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

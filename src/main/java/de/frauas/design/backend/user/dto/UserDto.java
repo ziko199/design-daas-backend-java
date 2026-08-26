@@ -22,7 +22,7 @@ public class UserDto {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .role("user")
+                .role(user.getRole())
                 .groups(user.getGroups().stream().map(g -> g.getId()).toList())
                 .enabled(user.isEnabled())
                 .build();

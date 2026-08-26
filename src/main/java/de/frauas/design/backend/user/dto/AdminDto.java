@@ -18,7 +18,7 @@ public class AdminDto {
                 .id(admin.getId())
                 .name(admin.getName())
                 .email(admin.getEmail())
-                .role("admin")
+                .role(admin.getRole())
                 .build();
     }
 }

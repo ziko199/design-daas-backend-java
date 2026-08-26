@@ -1,5 +1,6 @@
 package de.frauas.design.backend.user.controller;
 
+import de.frauas.design.backend.shared.security.Authorities;
 import de.frauas.design.backend.user.dto.UserGroupDto;
 import de.frauas.design.backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +23,16 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('SCOPE_admin')")
+@PreAuthorize(Authorities.IS_ADMIN)
 public class UserGroupController {
 
     private final UserService userService;
 
+    /**
+     * Lists all user groups.
+     *
+     * @return 200 OK with every {@link UserGroupDto} known to the system
+     */
     @GetMapping("/user_groups")
     public ResponseEntity<List<UserGroupDto>> getAllUserGroups() {
         log.info("GET /user_groups — listing all user groups");
@@ -35,12 +41,17 @@ public class UserGroupController {
         return ResponseEntity.ok(groups);
     }
 
+    /**
+     * Creates a new user group. Business rules (e.g. the {@code name} falling back to
+     * {@code description} when blank, and requiring at least one of the two) are enforced
+     * by {@link UserService#createUserGroup}, not here.
+     *
+     * @param request the group to create
+     * @return 200 OK with the created {@link UserGroupDto}
+     */
     @PostMapping("/user_group")
     public ResponseEntity<UserGroupDto> createUserGroup(@RequestBody UserGroupDto request) {
         log.info("POST /user_group — creating user group name={}", request.getName());
-        if (request.getName() == null || request.getName().isBlank()) {
-            request.setName(request.getDescription());
-        }
         UserGroupDto result = userService.createUserGroup(request);
         log.info("POST /user_group — user group created id={} name={}", result.getId(), result.getName());
         return ResponseEntity.ok(result);
@@ -55,6 +66,11 @@ public class UserGroupController {
      * NOT work in Spring MVC (only the first {@code @RequestMapping} meta-annotation is
      * honoured, so PATCH would 405) — {@code @RequestMapping(method = {...})} must be
      * used instead to register both HTTP methods.</p>
+     *
+     * @param id the ID of the group to update
+     * @param request fields to change; {@code null} fields are left untouched, a non-null
+     *     {@code userIds} replaces the group's membership entirely
+     * @return 200 OK with the updated {@link UserGroupDto}
      */
     @PatchMapping("/user_group/{id}")
     public ResponseEntity<UserGroupDto> updateUserGroup(@PathVariable Integer id, @RequestBody UserGroupDto request) {

@@ -226,11 +226,22 @@ public class UserService {
         return userGroupRepository.findAll().stream().map(UserGroupDto::from).toList();
     }
 
+    /**
+     * Creates a new user group.
+     *
+     * <p>If no name is given, the description is used as the name instead — at least one of the two must be present.</p>
+     *
+     * @param request the group data; {@code name} falls back to {@code description} when blank
+     * @return the created group
+     * @throws IllegalArgumentException if both {@code name} and {@code description} are blank
+     */
     @Transactional
     public UserGroupDto createUserGroup(UserGroupDto request) {
         log.debug("createUserGroup — name={}", request.getName());
-        if ((request.getName() == null || request.getName().isBlank())
-                && (request.getDescription() == null || request.getDescription().isBlank())) {
+        if (request.getName() == null || request.getName().isBlank()) {
+            request.setName(request.getDescription());
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
             log.warn("createUserGroup — rejected: name and description both blank");
             throw new IllegalArgumentException("UserGroup requires a name or a description");
         }

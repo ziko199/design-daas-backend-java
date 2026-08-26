@@ -2,7 +2,7 @@ package de.frauas.design.backend.user.controller;
 
 import de.frauas.design.backend.shared.security.Authorities;
 import de.frauas.design.backend.user.dto.UserGroupDto;
-import de.frauas.design.backend.user.service.UserService;
+import de.frauas.design.backend.user.service.UserGroupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,7 @@ import java.util.List;
 @PreAuthorize(Authorities.IS_ADMIN)
 public class UserGroupController {
 
-    private final UserService userService;
+    private final UserGroupService userGroupService;
 
     /**
      * Lists all user groups.
@@ -36,7 +36,7 @@ public class UserGroupController {
     @GetMapping("/user_groups")
     public ResponseEntity<List<UserGroupDto>> getAllUserGroups() {
         log.info("GET /user_groups — listing all user groups");
-        List<UserGroupDto> groups = userService.getAllUserGroups();
+        List<UserGroupDto> groups = userGroupService.getAllUserGroups();
         log.debug("GET /user_groups — returning {} groups", groups.size());
         return ResponseEntity.ok(groups);
     }
@@ -44,7 +44,7 @@ public class UserGroupController {
     /**
      * Creates a new user group. Business rules (e.g. the {@code name} falling back to
      * {@code description} when blank, and requiring at least one of the two) are enforced
-     * by {@link UserService#createUserGroup}, not here.
+     * by {@link UserGroupService#createUserGroup}, not here.
      *
      * @param request the group to create
      * @return 200 OK with the created {@link UserGroupDto}
@@ -52,7 +52,7 @@ public class UserGroupController {
     @PostMapping("/user_group")
     public ResponseEntity<UserGroupDto> createUserGroup(@RequestBody UserGroupDto request) {
         log.info("POST /user_group — creating user group name={}", request.getName());
-        UserGroupDto result = userService.createUserGroup(request);
+        UserGroupDto result = userGroupService.createUserGroup(request);
         log.info("POST /user_group — user group created id={} name={}", result.getId(), result.getName());
         return ResponseEntity.ok(result);
     }
@@ -75,7 +75,7 @@ public class UserGroupController {
     @PatchMapping("/user_group/{id}")
     public ResponseEntity<UserGroupDto> updateUserGroup(@PathVariable Integer id, @RequestBody UserGroupDto request) {
         log.info("PATCH /user_group/{} — updating user group", id);
-        UserGroupDto result = userService.updateUserGroup(id, request);
+        UserGroupDto result = userGroupService.updateUserGroup(id, request);
         log.info("PATCH /user_group/{} — updated successfully", id);
         return ResponseEntity.ok(result);
     }

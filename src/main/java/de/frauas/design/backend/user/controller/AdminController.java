@@ -4,7 +4,7 @@ import de.frauas.design.backend.shared.security.Authorities;
 import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.dto.AdminDto;
 import de.frauas.design.backend.user.dto.CreateAdminRequest;
-import de.frauas.design.backend.user.service.UserService;
+import de.frauas.design.backend.user.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.util.List;
 @PreAuthorize(Authorities.IS_ADMIN)
 public class AdminController {
 
-    private final UserService userService;
+    private final AdminService adminService;
 
     /**
      * Lists all admin accounts.
@@ -37,7 +37,7 @@ public class AdminController {
     @GetMapping("/admins")
     public ResponseEntity<List<AdminDto>> getAllAdmins() {
         log.info("GET /admins — listing all admins");
-        List<AdminDto> admins = userService.getAllAdmins();
+        List<AdminDto> admins = adminService.getAllAdmins();
         log.debug("GET /admins — returning {} admins", admins.size());
         return ResponseEntity.ok(admins);
     }
@@ -51,7 +51,7 @@ public class AdminController {
     @PostMapping("/admin")
     public ResponseEntity<AdminDto> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
         log.info("POST /admin — creating admin email={}", LogMasking.maskEmail(request.getEmail()));
-        AdminDto result = userService.createAdmin(request);
+        AdminDto result = adminService.createAdmin(request);
         log.info("POST /admin — admin created id={} email={}", result.getId(), LogMasking.maskEmail(result.getEmail()));
         return ResponseEntity.ok(result);
     }

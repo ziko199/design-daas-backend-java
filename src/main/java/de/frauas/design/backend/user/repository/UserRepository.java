@@ -31,9 +31,6 @@ public interface UserRepository extends JpaRepository<BaseUser, Integer> {
     @Query("SELECT u FROM User u WHERE u.id = :id")
     Optional<User> findUserById(@Param("id") Integer id);
 
-    @Query("SELECT a FROM Admin a WHERE a.id = :id")
-    Optional<Admin> findAdminById(@Param("id") Integer id);
-
     /** Used by PermissionService to fetch the user's group IDs. */
     @Query("SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId")
     List<Integer> findGroupIdsByUserId(@Param("userId") Integer userId);

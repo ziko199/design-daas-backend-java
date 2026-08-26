@@ -11,5 +11,4 @@ package de.frauas.design.backend.auth.dto;
  * @param userId the user's numeric id (the JWT's {@code sub} claim)
  * @param name   the user's display name
  */
-public record SessionInfoDto(Integer userId, String name) {
-}
+public record SessionInfoDto(Integer userId, String name) {}

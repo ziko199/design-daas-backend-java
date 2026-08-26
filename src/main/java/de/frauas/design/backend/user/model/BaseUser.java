@@ -1,6 +1,15 @@
 package de.frauas.design.backend.user.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,6 +18,12 @@ import lombok.ToString;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
+/**
+ * Base persistence entity for both regular {@link User}s and {@link Admin}s, mapped
+ * with single-table inheritance (discriminated by the {@code role} column).
+ * Holds shared credentials, registration/verification state, and SEC-H3 account-lockout
+ * bookkeeping (failed login attempts / lock expiry).
+ */
 @Entity
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)

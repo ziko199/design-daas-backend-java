@@ -1,6 +1,9 @@
 package de.frauas.design.backend.user.controller;
 
-import de.frauas.design.backend.user.dto.*;
+import de.frauas.design.backend.user.dto.CreateUserRequest;
+import de.frauas.design.backend.user.dto.PatchUserRequest;
+import de.frauas.design.backend.user.dto.UserDto;
+import de.frauas.design.backend.user.dto.ValidateEmailRequest;
 import de.frauas.design.backend.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,19 +12,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.*;
-import de.frauas.design.backend.desktop.service.DesktopService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * REST endpoints for self-service user registration/verification and admin-managed
+ * user CRUD, plus the desktop-access-check and application-request endpoints used
+ * by regular users.
+ */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
-    private final DesktopService desktopService;
 
     @PostMapping("/user")
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody CreateUserRequest request) {
@@ -68,35 +79,14 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    /**
-     * GET /user/{userId} — returns user or admin details.
-     * PHP returns either UserDetailsSwaggerDTO or AdminDetailsSwaggerDTO depending on type.
-     */
-    @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAuthority('SCOPE_admin')")
-    public ResponseEntity<?> getUserById(@PathVariable Integer userId) {
-        log.info("GET /user/{} — fetching user", userId);
-        return ResponseEntity.ok(userService.getUserByIdAny(userId));
-    }
-
     @PatchMapping("/user/{userId}")
     @PreAuthorize("hasAuthority('SCOPE_admin')")
     public ResponseEntity<UserDto> updateUser(
-            @PathVariable Integer userId,
-            @Valid @RequestBody PatchUserRequest request) {
+            @PathVariable Integer userId, @Valid @RequestBody PatchUserRequest request) {
         log.info("PATCH /user/{} — updating user", userId);
         UserDto result = userService.updateUser(userId, request);
         log.info("PATCH /user/{} — user updated successfully", userId);
         return ResponseEntity.ok(result);
-    }
-
-    @DeleteMapping("/user/{userId}")
-    @PreAuthorize("hasAuthority('SCOPE_admin')")
-    public ResponseEntity<String> deleteUser(@PathVariable Integer userId) {
-        log.info("DELETE /user/{} — deleting user", userId);
-        userService.deleteUser(userId);
-        log.info("DELETE /user/{} — user deleted successfully", userId);
-        return ResponseEntity.ok("User deleted");
     }
 
     @PostMapping("/user/{userId}/enable")
@@ -117,28 +107,17 @@ public class UserController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/users/access/{desktopId}")
-    @PreAuthorize("hasAnyAuthority('SCOPE_user', 'SCOPE_admin')")
-    public ResponseEntity<Map<String, Object>> checkAccess(
-            @PathVariable Integer desktopId,
-            @AuthenticationPrincipal Jwt jwt) {
-        Integer userId = Integer.parseInt(jwt.getSubject());
-        log.info("GET /users/access/{} — checking access for userId={}", desktopId, userId);
-        Map<String, Object> result = desktopService.checkUserDesktopAccess(userId, desktopId);
-        log.debug("GET /users/access/{} — result={} userId={}", desktopId, result.get("result"), userId);
-        return ResponseEntity.ok(result);
-    }
-
     @PostMapping("/user/request-application/{application}/{isoCode}")
-    @PreAuthorize("hasAnyAuthority('SCOPE_user', 'SCOPE_admin')")
+    @PreAuthorize("hasAnyAuthority('SCOPE_user', 'SCOPE_expert', 'SCOPE_admin')")
     public ResponseEntity<Void> requestApplication(
-            @PathVariable String application,
-            @PathVariable String isoCode,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable String application, @PathVariable String isoCode, @AuthenticationPrincipal Jwt jwt) {
         Integer userId = Integer.parseInt(jwt.getSubject());
         log.info("POST /user/request-application/{}/{} — userId={}", application, isoCode, userId);
         userService.requestApplication(userId, application);
-        log.info("POST /user/request-application — application request email sent userId={} app={}", userId, application);
+        log.info(
+                "POST /user/request-application — application request email sent userId={} app={}",
+                userId,
+                application);
         return ResponseEntity.ok().build();
     }
 }

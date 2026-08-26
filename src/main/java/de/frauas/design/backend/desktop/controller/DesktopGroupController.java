@@ -11,7 +11,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -34,7 +38,7 @@ public class DesktopGroupController {
         return ResponseEntity.ok(groups);
     }
 
-    @PostMapping({"/desktop_group", "/desktop-group"})
+    @PostMapping("/desktop_group")
     public ResponseEntity<DesktopGroupDto> createDesktopGroup(@RequestBody DesktopGroupDto request) {
         log.info("POST /desktop_group — creating desktop group name={}", request.getName());
         if (request.getName() == null || request.getName().isBlank()) {
@@ -45,39 +49,15 @@ public class DesktopGroupController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/desktop_group/{id}")
-    public ResponseEntity<DesktopGroupDto> getDesktopGroupById(@PathVariable Integer id) {
-        log.info("GET /desktop_group/{} — fetching desktop group", id);
-        return ResponseEntity.ok(desktopService.getDesktopGroupById(id));
-    }
-
-    @PutMapping("/desktop_group/{id}")
-    public ResponseEntity<DesktopGroupDto> updateDesktopGroup(
-            @PathVariable Integer id,
-            @RequestBody DesktopGroupDto request) {
-        log.info("PUT /desktop_group/{} — updating desktop group", id);
-        DesktopGroupDto result = desktopService.updateDesktopGroup(id, request);
-        log.info("PUT /desktop_group/{} — updated successfully", id);
-        return ResponseEntity.ok(result);
-    }
-
-    @DeleteMapping("/desktop_group/{id}")
-    public ResponseEntity<Void> deleteDesktopGroup(@PathVariable Integer id) {
-        log.info("DELETE /desktop_group/{} — deleting desktop group", id);
-        desktopService.deleteDesktopGroup(id);
-        log.info("DELETE /desktop_group/{} — deleted successfully", id);
-        return ResponseEntity.ok().build();
-    }
-
     @PostMapping("/desktop_group/{id}/user_group/{userGroupId}")
-    public ResponseEntity<?> addUserGroup(
-            @PathVariable Integer id,
-            @PathVariable Integer userGroupId) {
+    public ResponseEntity<?> addUserGroup(@PathVariable Integer id, @PathVariable Integer userGroupId) {
         log.info("POST /desktop_group/{}/user_group/{} — adding user group", id, userGroupId);
-        DesktopGroup dg = desktopGroupRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("DesktopGroup not found: " + id));
-        UserGroup ug = userGroupRepository.findById(userGroupId)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + userGroupId));
+        DesktopGroup dg = desktopGroupRepository
+                .findById(id)
+                .orElseThrow(() -> new NoSuchElementException("DesktopGroup not found: " + id));
+        UserGroup ug = userGroupRepository
+                .findById(userGroupId)
+                .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + userGroupId));
         if (ug.getDesktopGroups().contains(dg)) {
             log.warn("POST /desktop_group/{}/user_group/{} — already associated (conflict)", id, userGroupId);
             return ResponseEntity.status(409).body("User group already associated with this desktop group");
@@ -85,24 +65,8 @@ public class DesktopGroupController {
         ug.getDesktopGroups().add(dg);
         userGroupRepository.save(ug);
         log.info("POST /desktop_group/{}/user_group/{} — association created", id, userGroupId);
-        List<UserGroupDto> updatedUserGroups = dg.getUserGroups().stream()
-            .map(UserGroupDto::from)
-            .toList();
+        List<UserGroupDto> updatedUserGroups =
+                dg.getUserGroups().stream().map(UserGroupDto::from).toList();
         return ResponseEntity.ok(updatedUserGroups);
-    }
-
-    @DeleteMapping("/desktop_group/{id}/user_group/{userGroupId}")
-    public ResponseEntity<Void> removeUserGroup(
-            @PathVariable Integer id,
-            @PathVariable Integer userGroupId) {
-        log.info("DELETE /desktop_group/{}/user_group/{} — removing user group", id, userGroupId);
-        DesktopGroup dg = desktopGroupRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("DesktopGroup not found: " + id));
-        UserGroup ug = userGroupRepository.findById(userGroupId)
-            .orElseThrow(() -> new NoSuchElementException("UserGroup not found: " + userGroupId));
-        ug.getDesktopGroups().remove(dg);
-        userGroupRepository.save(ug);
-        log.info("DELETE /desktop_group/{}/user_group/{} — association removed", id, userGroupId);
-        return ResponseEntity.ok().build();
     }
 }

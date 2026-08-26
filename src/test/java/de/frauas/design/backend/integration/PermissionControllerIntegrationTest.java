@@ -1,11 +1,19 @@
 package de.frauas.design.backend.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.frauas.design.backend.permission.model.*;
-import de.frauas.design.backend.permission.repository.*;
+import de.frauas.design.backend.permission.model.Endpoint;
+import de.frauas.design.backend.permission.model.EndpointUserAccess;
+import de.frauas.design.backend.permission.repository.EndpointRepository;
+import de.frauas.design.backend.permission.repository.EndpointUserAccessRepository;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.repository.UserRepository;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,8 +23,10 @@ import java.util.UUID;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Integration tests for PermissionController.
@@ -28,12 +38,21 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
 
     // Spring Boot 4.x removed JacksonAutoConfiguration — ObjectMapper is no longer a Spring bean.
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @Autowired UserRepository userRepository;
-    @Autowired PasswordEncoder passwordEncoder;
-    @Autowired EndpointRepository endpointRepository;
-    @Autowired EndpointUserAccessRepository endpointUserAccessRepository;
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    @Autowired
+    EndpointRepository endpointRepository;
+
+    @Autowired
+    EndpointUserAccessRepository endpointUserAccessRepository;
 
     private User testUser;
+
     private Endpoint testEndpoint;
 
     @BeforeAll
@@ -46,11 +65,10 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
         u.setEmail("perm.test@example.com");
         u.setPassword(passwordEncoder.encode("Pass1234!"));
         u.setEnabled(true);
-        testUser = (User) userRepository.save(u);
+        testUser = userRepository.save(u);
 
         // Create test endpoint
-        endpointRepository.findByFunctionName("test_function")
-                .ifPresent(endpointRepository::delete);
+        endpointRepository.findByFunctionName("test_function").ifPresent(endpointRepository::delete);
         Endpoint ep = new Endpoint();
         ep.setFunctionName("test_function");
         ep.setDescription("Test function endpoint");
@@ -74,8 +92,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     @Order(1)
     @DisplayName("GET /permissions – returns deny (default) when no rule exists")
     void checkPermission_noRule_returnsDeny() throws Exception {
-        mockMvc.perform(get("/permissions/test_function/" + testUser.getId())
-                        .with(adminJwt(999)))
+        mockMvc.perform(get("/permissions/test_function/" + testUser.getId()).with(adminJwt(999)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("deny"));
     }
@@ -125,8 +142,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     @Order(4)
     @DisplayName("GET /permissions – returns 403 with user JWT (not admin)")
     void checkPermission_userJwt_returns403() throws Exception {
-        mockMvc.perform(get("/permissions/test_function/" + testUser.getId())
-                        .with(userJwt(testUser.getId())))
+        mockMvc.perform(get("/permissions/test_function/" + testUser.getId()).with(userJwt(testUser.getId())))
                 .andExpect(status().isForbidden());
     }
 
@@ -134,8 +150,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     @Order(5)
     @DisplayName("GET /permissions – returns 401 without authentication")
     void checkPermission_noAuth_returns401() throws Exception {
-        mockMvc.perform(get("/permissions/test_function/" + testUser.getId()))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/permissions/test_function/" + testUser.getId())).andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -192,4 +207,3 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 }
-

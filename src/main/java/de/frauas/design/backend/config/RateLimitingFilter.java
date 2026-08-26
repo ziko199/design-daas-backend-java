@@ -40,6 +40,26 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     /** Cache of token-bucket state keyed by "{clientIp}|{servletPath}". */
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
 
+    /** Checks whether {@code ip} falls within the given {@code cidr} (IPv4 only). */
+    private static boolean isInCidr(String ip, String cidr) throws Exception {
+        String[] parts = cidr.split("/");
+        if (parts.length != 2) return ip.equals(cidr);
+        int prefix = Integer.parseInt(parts[1]);
+        byte[] network = InetAddress.getByName(parts[0]).getAddress();
+        byte[] addr = InetAddress.getByName(ip).getAddress();
+        if (network.length != addr.length) return false; // IPv4 vs IPv6 mismatch
+        int fullBytes = prefix / 8;
+        int remainder = prefix % 8;
+        for (int i = 0; i < fullBytes; i++) {
+            if (network[i] != addr[i]) return false;
+        }
+        if (remainder > 0 && fullBytes < network.length) {
+            int mask = 0xFF & (0xFF << (8 - remainder));
+            return (network[fullBytes] & mask) == (addr[fullBytes] & mask);
+        }
+        return true;
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         if (!props.isEnabled()) {
@@ -49,21 +69,17 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private boolean isRateLimitedPath(String path) {
-        return "/oauth2/user/token".equals(path)
-            || "/user".equals(path)
-            || "/user/validate_email".equals(path);
+        return "/oauth2/user/token".equals(path) || "/user".equals(path) || "/user/validate_email".equals(path);
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
-        String ip        = resolveClientIp(request);
-        String path      = request.getServletPath();
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String ip = resolveClientIp(request);
+        String path = request.getServletPath();
         String bucketKey = ip + "|" + path;
 
-        TokenBucket bucket = buckets.computeIfAbsent(
-                bucketKey, k -> new TokenBucket(capacityFor(path)));
+        TokenBucket bucket = buckets.computeIfAbsent(bucketKey, k -> new TokenBucket(capacityFor(path)));
 
         if (bucket.tryConsume()) {
             chain.doFilter(request, response);
@@ -71,18 +87,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             log.warn("Rate limit exceeded: ip={} path={}", ip, path);
             response.setStatus(429);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write(
-                "{\"error\":\"too_many_requests\"," +
-                "\"error_description\":\"Too many requests — please try again later\"}");
+            response.getWriter()
+                    .write("{\"error\":\"too_many_requests\","
+                            + "\"error_description\":\"Too many requests — please try again later\"}");
         }
     }
 
     private int capacityFor(String path) {
         return switch (path) {
-            case "/oauth2/user/token"   -> props.getAuthTokenRequestsPerMinute();
-            case "/user"                -> props.getRegisterRequestsPerMinute();
+            case "/oauth2/user/token" -> props.getAuthTokenRequestsPerMinute();
+            case "/user" -> props.getRegisterRequestsPerMinute();
             case "/user/validate_email" -> props.getValidateEmailRequestsPerMinute();
-            default                     -> 60;
+            default -> 60;
         };
     }
 
@@ -93,7 +109,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
      */
     private String resolveClientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
-        String forwarded  = request.getHeader("X-Forwarded-For");
+        String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank() && isFromTrustedProxy(remoteAddr)) {
             return forwarded.split(",")[0].trim();
         }
@@ -109,26 +125,6 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             }
         }
         return false;
-    }
-
-    /** Checks whether {@code ip} falls within the given {@code cidr} (IPv4 only). */
-    private static boolean isInCidr(String ip, String cidr) throws Exception {
-        String[] parts = cidr.split("/");
-        if (parts.length != 2) return ip.equals(cidr);
-        int prefix = Integer.parseInt(parts[1]);
-        byte[] network = InetAddress.getByName(parts[0]).getAddress();
-        byte[] addr    = InetAddress.getByName(ip).getAddress();
-        if (network.length != addr.length) return false; // IPv4 vs IPv6 mismatch
-        int fullBytes = prefix / 8;
-        int remainder = prefix % 8;
-        for (int i = 0; i < fullBytes; i++) {
-            if (network[i] != addr[i]) return false;
-        }
-        if (remainder > 0 && fullBytes < network.length) {
-            int mask = 0xFF & (0xFF << (8 - remainder));
-            return (network[fullBytes] & mask) == (addr[fullBytes] & mask);
-        }
-        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -157,10 +153,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         boolean tryConsume() {
             while (true) {
-                long current     = state.get();
+                long current = state.get();
                 long epochMinute = System.currentTimeMillis() / 60_000L;
-                long storedMin   = current >>> 32;
-                long consumed    = current & 0xFFFFFFFFL;
+                long storedMin = current >>> 32;
+                long consumed = current & 0xFFFFFFFFL;
 
                 if (storedMin != epochMinute) {
                     // New minute: reset counter to 1 (for this request)

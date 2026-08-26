@@ -21,15 +21,20 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionService")
 class SessionServiceTest {
 
-    @Mock UserRepository userRepository;
-    @Mock AccessTokenRepository accessTokenRepository;
+    @Mock
+    UserRepository userRepository;
+
+    @Mock
+    AccessTokenRepository accessTokenRepository;
 
     SessionService sessionService;
 
@@ -74,7 +79,8 @@ class SessionServiceTest {
 
         assertThatThrownBy(() -> sessionService.getSession(jwt))
                 .isInstanceOf(TokenRevokedException.class)
-                .satisfies(ex -> assertThat(((TokenRevokedException) ex).getStatus()).isEqualTo(401));
+                .satisfies(ex ->
+                        assertThat(((TokenRevokedException) ex).getStatus()).isEqualTo(401));
         verifyNoInteractions(userRepository);
     }
 
@@ -87,8 +93,7 @@ class SessionServiceTest {
         entity.revoke();
         when(accessTokenRepository.findByJti("revoked-jti")).thenReturn(Optional.of(entity));
 
-        assertThatThrownBy(() -> sessionService.getSession(jwt))
-                .isInstanceOf(TokenRevokedException.class);
+        assertThatThrownBy(() -> sessionService.getSession(jwt)).isInstanceOf(TokenRevokedException.class);
     }
 
     @Test
@@ -102,7 +107,8 @@ class SessionServiceTest {
 
         assertThatThrownBy(() -> sessionService.getSession(jwt))
                 .isInstanceOf(UserNotFoundException.class)
-                .satisfies(ex -> assertThat(((UserNotFoundException) ex).getStatus()).isEqualTo(401));
+                .satisfies(ex ->
+                        assertThat(((UserNotFoundException) ex).getStatus()).isEqualTo(401));
     }
 
     @Test
@@ -114,8 +120,7 @@ class SessionServiceTest {
         when(accessTokenRepository.findByJti("valid-jti")).thenReturn(Optional.of(entity));
         when(userRepository.findById(1)).thenReturn(Optional.of(user(1, false)));
 
-        assertThatThrownBy(() -> sessionService.getSession(jwt))
-                .isInstanceOf(UserDisabledException.class);
+        assertThatThrownBy(() -> sessionService.getSession(jwt)).isInstanceOf(UserDisabledException.class);
     }
 
     @Test
@@ -138,8 +143,7 @@ class SessionServiceTest {
     void missingJtiClaim_treatedAsRevoked() {
         Jwt jwt = jwt(null, 1, "user");
 
-        assertThatThrownBy(() -> sessionService.getSession(jwt))
-                .isInstanceOf(TokenRevokedException.class);
+        assertThatThrownBy(() -> sessionService.getSession(jwt)).isInstanceOf(TokenRevokedException.class);
         verifyNoInteractions(accessTokenRepository);
     }
 
@@ -148,7 +152,8 @@ class SessionServiceTest {
     void nullJwt_throwsMissingToken() {
         assertThatThrownBy(() -> sessionService.getSession(null))
                 .isInstanceOf(MissingTokenException.class)
-                .satisfies(ex -> assertThat(((MissingTokenException) ex).getStatus()).isEqualTo(401));
+                .satisfies(ex ->
+                        assertThat(((MissingTokenException) ex).getStatus()).isEqualTo(401));
         verifyNoInteractions(accessTokenRepository, userRepository);
     }
 }

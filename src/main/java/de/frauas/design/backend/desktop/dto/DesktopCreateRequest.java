@@ -26,8 +26,8 @@ public class DesktopCreateRequest {
     @Data
     public static class SubGroupRequest {
         private String name;
+
         @NotBlank
         private String description;
     }
 }
-

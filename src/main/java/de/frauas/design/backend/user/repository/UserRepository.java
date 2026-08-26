@@ -11,6 +11,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Data-access for {@link BaseUser} and its subtypes ({@link User}, {@link Admin}).
+ * Uses single-table inheritance, so most queries filter by concrete
+ * subtype via JPQL.
+ */
 @Repository
 public interface UserRepository extends JpaRepository<BaseUser, Integer> {
 
@@ -32,14 +37,4 @@ public interface UserRepository extends JpaRepository<BaseUser, Integer> {
     /** Used by PermissionService to fetch the user's group IDs. */
     @Query("SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId")
     List<Integer> findGroupIdsByUserId(@Param("userId") Integer userId);
-
-    /** Single-query transitive access check: user → groups → desktopGroups → desktops. */
-    @Query("""
-        SELECT COUNT(ug) FROM UserGroup ug
-        JOIN ug.users u
-        JOIN ug.desktopGroups dg
-        JOIN dg.desktops d
-        WHERE u.id = :userId AND d.id = :desktopId
-        """)
-    long countDesktopAccess(@Param("userId") Integer userId, @Param("desktopId") Integer desktopId);
 }

@@ -6,12 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
 
 @DisplayName("GlobalExceptionHandler")
 class GlobalExceptionHandlerTest {
@@ -21,8 +19,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("handleNotFound returns 404 with message")
     void handleNotFound_returns404() {
-        ResponseEntity<ErrorResponse> resp =
-                handler.handleNotFound(new NoSuchElementException("User not found: 99"));
+        ResponseEntity<ErrorResponse> resp = handler.handleNotFound(new NoSuchElementException("User not found: 99"));
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(resp.getBody()).isNotNull();
@@ -43,8 +40,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("handleAccessDenied returns 403 with generic message")
     void handleAccessDenied_returns403() {
-        ResponseEntity<ErrorResponse> resp =
-                handler.handleAccessDenied(new AccessDeniedException("no access"));
+        ResponseEntity<ErrorResponse> resp = handler.handleAccessDenied(new AccessDeniedException("no access"));
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(resp.getBody()).isNotNull();
@@ -54,8 +50,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("handleGeneric returns 500 with a correlation-ID reference, NOT the raw exception message (SEC-M2)")
     void handleGeneric_returns500() {
-        ResponseEntity<ErrorResponse> resp =
-                handler.handleGeneric(new RuntimeException("something blew up"));
+        ResponseEntity<ErrorResponse> resp = handler.handleGeneric(new RuntimeException("something blew up"));
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(resp.getBody()).isNotNull();
@@ -65,4 +60,3 @@ class GlobalExceptionHandlerTest {
         assertThat(resp.getBody().getMessage()).doesNotContain("something blew up");
     }
 }
-

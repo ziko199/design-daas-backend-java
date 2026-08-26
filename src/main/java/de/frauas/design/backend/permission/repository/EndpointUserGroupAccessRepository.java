@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface EndpointUserGroupAccessRepository
-        extends JpaRepository<EndpointUserGroupAccess, Integer> {
+public interface EndpointUserGroupAccessRepository extends JpaRepository<EndpointUserGroupAccess, Integer> {
 
     Optional<EndpointUserGroupAccess> findFirstByUserGroupIdInAndEndpoint_FunctionName(
-        List<Integer> userGroupIds, String functionName);
+            List<Integer> userGroupIds, String functionName);
 }

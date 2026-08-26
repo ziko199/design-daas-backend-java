@@ -1,6 +1,15 @@
 package de.frauas.design.backend.desktop.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,10 +41,9 @@ public class DesktopGroup {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-        name = "desktops_to_desktop_groups",
-        joinColumns = @JoinColumn(name = "desktop_group_id"),
-        inverseJoinColumns = @JoinColumn(name = "desktop_id")
-    )
+            name = "desktops_to_desktop_groups",
+            joinColumns = @JoinColumn(name = "desktop_group_id"),
+            inverseJoinColumns = @JoinColumn(name = "desktop_id"))
     private List<Desktop> desktops = new ArrayList<>();
 
     @ManyToMany(mappedBy = "desktopGroups", fetch = FetchType.LAZY)

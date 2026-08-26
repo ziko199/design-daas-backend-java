@@ -11,7 +11,7 @@ import java.util.List;
  * Partial-update request for an existing user.
  * All fields are optional — a {@code null} value means "do not change".
  *
- * <p>SEC-M4: Validation constraints are applied so that if a field IS provided
+ * <p>Validation constraints are applied so that if a field IS provided
  * it must still satisfy the same business rules as on creation.</p>
  */
 @Data
@@ -25,9 +25,8 @@ public class PatchUserRequest {
 
     /** Same regex as CreateUserRequest / UserService.PASSWORD_REGEX. */
     @Pattern(
-        regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
-        message = "password must be at least 8 characters and contain uppercase, lowercase, and a digit"
-    )
+            regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
+            message = "password must be at least 8 characters and contain uppercase, lowercase, and a digit")
     private String password;
 
     private List<Integer> groups;

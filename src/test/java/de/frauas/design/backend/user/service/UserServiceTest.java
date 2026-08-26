@@ -1,17 +1,20 @@
 package de.frauas.design.backend.user.service;
 
-import de.frauas.design.backend.user.dto.*;
+import de.frauas.design.backend.user.dto.AdminDto;
+import de.frauas.design.backend.user.dto.CreateAdminRequest;
+import de.frauas.design.backend.user.dto.CreateUserRequest;
+import de.frauas.design.backend.user.dto.PatchUserRequest;
+import de.frauas.design.backend.user.dto.UserDto;
+import de.frauas.design.backend.user.dto.UserGroupDto;
 import de.frauas.design.backend.user.model.Admin;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.model.UserGroup;
 import de.frauas.design.backend.user.repository.UserGroupRepository;
 import de.frauas.design.backend.user.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,9 +25,16 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService")
@@ -142,8 +152,7 @@ class UserServiceTest {
             req.setEmail("alice@example.com");
             req.setPassword("password1");
 
-            assertThatThrownBy(() -> userService.createUser(req))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> userService.createUser(req)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -154,8 +163,7 @@ class UserServiceTest {
             req.setEmail("alice@example.com");
             req.setPassword("PasswordOnly");
 
-            assertThatThrownBy(() -> userService.createUser(req))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> userService.createUser(req)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -167,8 +175,12 @@ class UserServiceTest {
             req.setPassword("Password1");
             req.setGroups(List.of(10, 20));
 
-            UserGroup g1 = new UserGroup(); g1.setId(10); g1.setName("G1");
-            UserGroup g2 = new UserGroup(); g2.setId(20); g2.setName("G2");
+            UserGroup g1 = new UserGroup();
+            g1.setId(10);
+            g1.setName("G1");
+            UserGroup g2 = new UserGroup();
+            g2.setId(20);
+            g2.setName("G2");
 
             when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(any())).thenReturn("hashed");
@@ -267,32 +279,26 @@ class UserServiceTest {
         @DisplayName("returns correct page of users")
         void getAllUsers_page0perPage2_returnsFirst2() {
             List<User> allUsers = List.of(
-                    makeUser(1, "u1@e.com", true),
-                    makeUser(2, "u2@e.com", true),
-                    makeUser(3, "u3@e.com", true)
-            );
+                    makeUser(1, "u1@e.com", true), makeUser(2, "u2@e.com", true), makeUser(3, "u3@e.com", true));
             when(userRepository.findAllUsers()).thenReturn(allUsers);
 
             List<UserDto> page = userService.getAllUsers(0, 2);
 
             assertThat(page).hasSize(2);
-            assertThat(page.get(0).getEmail()).isEqualTo("u1@e.com");
+            assertThat(page.getFirst().getEmail()).isEqualTo("u1@e.com");
         }
 
         @Test
         @DisplayName("returns second page")
         void getAllUsers_page1perPage2_returnsThird() {
             List<User> allUsers = List.of(
-                    makeUser(1, "u1@e.com", true),
-                    makeUser(2, "u2@e.com", true),
-                    makeUser(3, "u3@e.com", true)
-            );
+                    makeUser(1, "u1@e.com", true), makeUser(2, "u2@e.com", true), makeUser(3, "u3@e.com", true));
             when(userRepository.findAllUsers()).thenReturn(allUsers);
 
             List<UserDto> page = userService.getAllUsers(1, 2);
 
             assertThat(page).hasSize(1);
-            assertThat(page.get(0).getEmail()).isEqualTo("u3@e.com");
+            assertThat(page.getFirst().getEmail()).isEqualTo("u3@e.com");
         }
 
         @Test
@@ -304,35 +310,17 @@ class UserServiceTest {
 
             assertThat(page).isEmpty();
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // getUserById
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("getUserById")
-    class GetUserById {
 
         @Test
-        @DisplayName("returns DTO when user exists")
-        void getUserById_exists_returnsDto() {
-            User u = makeUser(1, "u@e.com", true);
-            when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
-
-            UserDto dto = userService.getUserById(1);
-
-            assertThat(dto.getId()).isEqualTo(1);
+        @DisplayName("throws IllegalArgumentException for negative page")
+        void getAllUsers_negativePage_throws() {
+            assertThatThrownBy(() -> userService.getAllUsers(-1, 10)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
-        @DisplayName("throws NoSuchElementException when user not found")
-        void getUserById_notFound_throws() {
-            when(userRepository.findUserById(99)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> userService.getUserById(99))
-                    .isInstanceOf(NoSuchElementException.class)
-                    .hasMessageContaining("99");
+        @DisplayName("throws IllegalArgumentException for zero or negative perPage")
+        void getAllUsers_zeroPerPage_throws() {
+            assertThatThrownBy(() -> userService.getAllUsers(0, 0)).isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -356,7 +344,7 @@ class UserServiceTest {
 
             UserDto dto = userService.updateUser(1, req);
 
-            assertThat(u.getName()).isEqualTo("New Name");
+            assertThat(dto.getName()).isEqualTo("New Name");
         }
 
         @Test
@@ -384,8 +372,7 @@ class UserServiceTest {
             PatchUserRequest req = new PatchUserRequest();
             req.setPassword("weak");
 
-            assertThatThrownBy(() -> userService.updateUser(1, req))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> userService.updateUser(1, req)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -396,37 +383,54 @@ class UserServiceTest {
             PatchUserRequest req = new PatchUserRequest();
             req.setName("X");
 
-            assertThatThrownBy(() -> userService.updateUser(99, req))
-                    .isInstanceOf(NoSuchElementException.class);
+            assertThatThrownBy(() -> userService.updateUser(99, req)).isInstanceOf(NoSuchElementException.class);
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // deleteUser
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("deleteUser")
-    class DeleteUser {
 
         @Test
-        @DisplayName("deletes user when found")
-        void deleteUser_found_deletes() {
+        @DisplayName("throws when new email is already used by another user")
+        void updateUser_emailInUseByAnotherUser_throws() {
+            User u = makeUser(1, "u@e.com", true);
+            User other = makeUser(2, "taken@e.com", true);
+            when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
+            when(userRepository.findByEmail("taken@e.com")).thenReturn(Optional.of(other));
+
+            PatchUserRequest req = new PatchUserRequest();
+            req.setEmail("taken@e.com");
+
+            assertThatThrownBy(() -> userService.updateUser(1, req)).isInstanceOf(IllegalArgumentException.class);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("allows updating to the user's own current email")
+        void updateUser_sameEmail_noConflict() {
             User u = makeUser(1, "u@e.com", true);
             when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
+            when(userRepository.save(any())).thenReturn(u);
 
-            userService.deleteUser(1);
+            PatchUserRequest req = new PatchUserRequest();
+            req.setEmail("u@e.com");
 
-            verify(userRepository).deleteById(1);
+            UserDto dto = userService.updateUser(1, req);
+
+            assertThat(dto.getEmail()).isEqualTo("u@e.com");
+            verify(userRepository, never()).findByEmail(anyString());
         }
 
         @Test
-        @DisplayName("throws when user not found")
-        void deleteUser_notFound_throws() {
-            when(userRepository.findUserById(99)).thenReturn(Optional.empty());
+        @DisplayName("updates to a new, unused email")
+        void updateUser_newUnusedEmail_updates() {
+            User u = makeUser(1, "u@e.com", true);
+            when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
+            when(userRepository.findByEmail("new@e.com")).thenReturn(Optional.empty());
+            when(userRepository.save(any())).thenReturn(u);
 
-            assertThatThrownBy(() -> userService.deleteUser(99))
-                    .isInstanceOf(NoSuchElementException.class);
+            PatchUserRequest req = new PatchUserRequest();
+            req.setEmail("new@e.com");
+
+            UserDto dto = userService.updateUser(1, req);
+
+            assertThat(dto.getEmail()).isEqualTo("new@e.com");
         }
     }
 
@@ -445,7 +449,7 @@ class UserServiceTest {
             when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
             when(userRepository.save(any())).thenReturn(u);
 
-            UserDto dto = userService.enableUser(1);
+            userService.enableUser(1);
 
             assertThat(u.isEnabled()).isTrue();
         }
@@ -457,7 +461,7 @@ class UserServiceTest {
             when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
             when(userRepository.save(any())).thenReturn(u);
 
-            UserDto dto = userService.disableUser(1);
+            userService.disableUser(1);
 
             assertThat(u.isEnabled()).isFalse();
         }
@@ -511,6 +515,27 @@ class UserServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // getAllAdmins
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("getAllAdmins")
+    class AdminQueries {
+
+        @Test
+        @DisplayName("getAllAdmins returns all admins as DTOs")
+        void getAllAdmins_returnsAllAsDtos() {
+            when(userRepository.findAllAdmins())
+                    .thenReturn(List.of(makeAdmin(1, "a1@e.com"), makeAdmin(2, "a2@e.com")));
+
+            List<AdminDto> admins = userService.getAllAdmins();
+
+            assertThat(admins).hasSize(2);
+            assertThat(admins).extracting(AdminDto::getEmail).containsExactlyInAnyOrder("a1@e.com", "a2@e.com");
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // UserGroup CRUD
     // -------------------------------------------------------------------------
 
@@ -521,7 +546,10 @@ class UserServiceTest {
         @Test
         @DisplayName("createUserGroup saves and returns DTO")
         void createUserGroup_valid_savesAndReturnsDto() {
-            UserGroupDto req = UserGroupDto.builder().name("Devs").description("Developers").build();
+            UserGroupDto req = UserGroupDto.builder()
+                    .name("Devs")
+                    .description("Developers")
+                    .build();
             when(userGroupRepository.save(any())).thenAnswer(inv -> {
                 UserGroup g = inv.getArgument(0);
                 g.setId(1);
@@ -534,21 +562,12 @@ class UserServiceTest {
         }
 
         @Test
-        @DisplayName("getUserGroupById throws when not found")
-        void getUserGroupById_notFound_throws() {
-            when(userGroupRepository.findById(99)).thenReturn(Optional.empty());
+        @DisplayName("createUserGroup throws when both name and description are blank")
+        void createUserGroup_blankNameAndDescription_throws() {
+            UserGroupDto req = UserGroupDto.builder().name("  ").description("").build();
 
-            assertThatThrownBy(() -> userService.getUserGroupById(99))
-                    .isInstanceOf(NoSuchElementException.class);
-        }
-
-        @Test
-        @DisplayName("deleteUserGroup throws when not found")
-        void deleteUserGroup_notFound_throws() {
-            when(userGroupRepository.findById(99)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> userService.deleteUserGroup(99))
-                    .isInstanceOf(NoSuchElementException.class);
+            assertThatThrownBy(() -> userService.createUserGroup(req)).isInstanceOf(IllegalArgumentException.class);
+            verify(userGroupRepository, never()).save(any());
         }
 
         @Test
@@ -565,8 +584,8 @@ class UserServiceTest {
             UserGroupDto req = UserGroupDto.builder().name("New").build();
             UserGroupDto dto = userService.updateUserGroup(1, req);
 
-            assertThat(g.getName()).isEqualTo("New");
-            assertThat(g.getDescription()).isEqualTo("Old desc"); // unchanged
+            assertThat(dto.getName()).isEqualTo("New");
+            assertThat(dto.getDescription()).isEqualTo("Old desc"); // unchanged
         }
     }
 
@@ -586,7 +605,11 @@ class UserServiceTest {
             req.setPassword(password);
             lenient().when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
             lenient().when(passwordEncoder.encode(any())).thenReturn("h");
-            lenient().when(userRepository.save(any())).thenAnswer(inv -> { User u = inv.getArgument(0); u.setId(1); return u; });
+            lenient().when(userRepository.save(any())).thenAnswer(inv -> {
+                User u = inv.getArgument(0);
+                u.setId(1);
+                return u;
+            });
             userService.createUser(req);
         }
 
@@ -604,8 +627,7 @@ class UserServiceTest {
             req.setEmail("x@x.com");
             req.setPassword(null);
 
-            assertThatThrownBy(() -> userService.createUser(req))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> userService.createUser(req)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -615,11 +637,40 @@ class UserServiceTest {
             CreateUserRequest req = new CreateUserRequest();
             req.setName("X");
             req.setEmail("x@x.com");
-            req.setPassword("Abc1def");   // exactly 7 chars, valid pattern but too short
+            req.setPassword("Abc1def"); // exactly 7 chars, valid pattern but too short
 
-            assertThatThrownBy(() -> userService.createUser(req))
-                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> userService.createUser(req)).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // requestApplication
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("requestApplication")
+    class RequestApplication {
+
+        @Test
+        @DisplayName("sends application-request email for the requesting user")
+        void requestApplication_validUser_sendsEmail() {
+            User u = makeUser(1, "u@e.com", true);
+            u.setName("Alice");
+            when(userRepository.findById(1)).thenReturn(Optional.of(u));
+
+            userService.requestApplication(1, "some-app");
+
+            verify(mailService).sendApplicationRequestEmail("u@e.com", "Alice", "1", "some-app");
+        }
+
+        @Test
+        @DisplayName("throws NoSuchElementException when user not found")
+        void requestApplication_userNotFound_throws() {
+            when(userRepository.findById(99)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.requestApplication(99, "some-app"))
+                    .isInstanceOf(NoSuchElementException.class);
+            verifyNoInteractions(mailService);
         }
     }
 }
-

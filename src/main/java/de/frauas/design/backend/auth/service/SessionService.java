@@ -2,7 +2,6 @@ package de.frauas.design.backend.auth.service;
 
 import de.frauas.design.backend.auth.dto.SessionInfoDto;
 import de.frauas.design.backend.auth.exception.MissingTokenException;
-import de.frauas.design.backend.auth.exception.SessionException;
 import de.frauas.design.backend.auth.exception.TokenRevokedException;
 import de.frauas.design.backend.auth.exception.UserDisabledException;
 import de.frauas.design.backend.auth.exception.UserNotFoundException;

@@ -16,14 +16,15 @@ public class UserDto {
     private List<Integer> groups;
     private boolean enabled;
 
+    /** Maps a {@link User} entity to its API representation, exposing its group IDs. */
     public static UserDto from(User user) {
         return UserDto.builder()
-            .id(user.getId())
-            .name(user.getName())
-            .email(user.getEmail())
-            .role("user")
-            .groups(user.getGroups().stream().map(g -> g.getId()).toList())
-            .enabled(user.isEnabled())
-            .build();
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role("user")
+                .groups(user.getGroups().stream().map(g -> g.getId()).toList())
+                .enabled(user.isEnabled())
+                .build();
     }
 }

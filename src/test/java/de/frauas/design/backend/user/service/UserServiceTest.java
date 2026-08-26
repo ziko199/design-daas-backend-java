@@ -1,21 +1,18 @@
 package de.frauas.design.backend.user.service;
 
-import de.frauas.design.backend.user.dto.AdminDto;
-import de.frauas.design.backend.user.dto.CreateAdminRequest;
 import de.frauas.design.backend.user.dto.CreateUserRequest;
 import de.frauas.design.backend.user.dto.PatchUserRequest;
 import de.frauas.design.backend.user.dto.UserDto;
-import de.frauas.design.backend.user.dto.UserGroupDto;
 import de.frauas.design.backend.user.model.Admin;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.model.UserGroup;
 import de.frauas.design.backend.user.repository.UserGroupRepository;
 import de.frauas.design.backend.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -52,8 +49,16 @@ class UserServiceTest {
     @Mock
     MailService mailService;
 
-    @InjectMocks
     UserService userService;
+
+    @BeforeEach
+    void setUp() {
+        // AccountValidator is a real (non-mocked) collaborator backed by the mocked
+        // repository — its behaviour is simple enough not to need its own mock here,
+        // and using the real thing keeps these tests exercising the actual validation rules.
+        AccountValidator accountValidator = new AccountValidator(userRepository);
+        userService = new UserService(userRepository, userGroupRepository, passwordEncoder, mailService, accountValidator);
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -268,7 +273,7 @@ class UserServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // getAllUsers with pagination
+    // getAllUsers
     // -------------------------------------------------------------------------
 
     @Nested
@@ -276,51 +281,26 @@ class UserServiceTest {
     class GetAllUsers {
 
         @Test
-        @DisplayName("returns correct page of users")
-        void getAllUsers_page0perPage2_returnsFirst2() {
+        @DisplayName("returns every user, unpaginated")
+        void getAllUsers_returnsAllUsers() {
             List<User> allUsers = List.of(
                     makeUser(1, "u1@e.com", true), makeUser(2, "u2@e.com", true), makeUser(3, "u3@e.com", true));
             when(userRepository.findAllUsers()).thenReturn(allUsers);
 
-            List<UserDto> page = userService.getAllUsers(0, 2);
+            List<UserDto> result = userService.getAllUsers();
 
-            assertThat(page).hasSize(2);
-            assertThat(page.getFirst().getEmail()).isEqualTo("u1@e.com");
+            assertThat(result).hasSize(3);
+            assertThat(result.getFirst().getEmail()).isEqualTo("u1@e.com");
         }
 
         @Test
-        @DisplayName("returns second page")
-        void getAllUsers_page1perPage2_returnsThird() {
-            List<User> allUsers = List.of(
-                    makeUser(1, "u1@e.com", true), makeUser(2, "u2@e.com", true), makeUser(3, "u3@e.com", true));
-            when(userRepository.findAllUsers()).thenReturn(allUsers);
+        @DisplayName("returns empty list when there are no users")
+        void getAllUsers_noUsers_returnsEmpty() {
+            when(userRepository.findAllUsers()).thenReturn(List.of());
 
-            List<UserDto> page = userService.getAllUsers(1, 2);
+            List<UserDto> result = userService.getAllUsers();
 
-            assertThat(page).hasSize(1);
-            assertThat(page.getFirst().getEmail()).isEqualTo("u3@e.com");
-        }
-
-        @Test
-        @DisplayName("returns empty list when page is beyond total")
-        void getAllUsers_pageBeyondTotal_returnsEmpty() {
-            when(userRepository.findAllUsers()).thenReturn(List.of(makeUser(1, "u@e.com", true)));
-
-            List<UserDto> page = userService.getAllUsers(5, 20);
-
-            assertThat(page).isEmpty();
-        }
-
-        @Test
-        @DisplayName("throws IllegalArgumentException for negative page")
-        void getAllUsers_negativePage_throws() {
-            assertThatThrownBy(() -> userService.getAllUsers(-1, 10)).isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @Test
-        @DisplayName("throws IllegalArgumentException for zero or negative perPage")
-        void getAllUsers_zeroPerPage_throws() {
-            assertThatThrownBy(() -> userService.getAllUsers(0, 0)).isInstanceOf(IllegalArgumentException.class);
+            assertThat(result).isEmpty();
         }
     }
 
@@ -464,128 +444,6 @@ class UserServiceTest {
             userService.disableUser(1);
 
             assertThat(u.isEnabled()).isFalse();
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // createAdmin
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("createAdmin")
-    class CreateAdmin {
-
-        @Test
-        @DisplayName("creates admin with valid data")
-        void createAdmin_valid_returnsDto() {
-            CreateAdminRequest req = new CreateAdminRequest();
-            req.setName("AdminX");
-            req.setEmail("admin@example.com");
-            req.setPassword("AdminPass1");
-
-            when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.empty());
-            when(passwordEncoder.encode("AdminPass1")).thenReturn("hashed");
-            when(userRepository.save(any())).thenAnswer(inv -> {
-                Admin a = inv.getArgument(0);
-                a.setId(5);
-                return a;
-            });
-
-            AdminDto dto = userService.createAdmin(req);
-
-            assertThat(dto.getEmail()).isEqualTo("admin@example.com");
-            assertThat(dto.getRole()).isEqualTo("admin");
-        }
-
-        @Test
-        @DisplayName("throws on duplicate admin email")
-        void createAdmin_duplicateEmail_throws() {
-            CreateAdminRequest req = new CreateAdminRequest();
-            req.setName("AdminX");
-            req.setEmail("admin@example.com");
-            req.setPassword("AdminPass1");
-
-            when(userRepository.findByEmail("admin@example.com"))
-                    .thenReturn(Optional.of(makeAdmin(1, "admin@example.com")));
-
-            assertThatThrownBy(() -> userService.createAdmin(req))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Email already in use");
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // getAllAdmins
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("getAllAdmins")
-    class AdminQueries {
-
-        @Test
-        @DisplayName("getAllAdmins returns all admins as DTOs")
-        void getAllAdmins_returnsAllAsDtos() {
-            when(userRepository.findAllAdmins())
-                    .thenReturn(List.of(makeAdmin(1, "a1@e.com"), makeAdmin(2, "a2@e.com")));
-
-            List<AdminDto> admins = userService.getAllAdmins();
-
-            assertThat(admins).hasSize(2);
-            assertThat(admins).extracting(AdminDto::getEmail).containsExactlyInAnyOrder("a1@e.com", "a2@e.com");
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // UserGroup CRUD
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("UserGroup CRUD")
-    class UserGroupCrud {
-
-        @Test
-        @DisplayName("createUserGroup saves and returns DTO")
-        void createUserGroup_valid_savesAndReturnsDto() {
-            UserGroupDto req = UserGroupDto.builder()
-                    .name("Devs")
-                    .description("Developers")
-                    .build();
-            when(userGroupRepository.save(any())).thenAnswer(inv -> {
-                UserGroup g = inv.getArgument(0);
-                g.setId(1);
-                return g;
-            });
-
-            UserGroupDto dto = userService.createUserGroup(req);
-
-            assertThat(dto.getName()).isEqualTo("Devs");
-        }
-
-        @Test
-        @DisplayName("createUserGroup throws when both name and description are blank")
-        void createUserGroup_blankNameAndDescription_throws() {
-            UserGroupDto req = UserGroupDto.builder().name("  ").description("").build();
-
-            assertThatThrownBy(() -> userService.createUserGroup(req)).isInstanceOf(IllegalArgumentException.class);
-            verify(userGroupRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("updateUserGroup updates fields")
-        void updateUserGroup_updatesFields() {
-            UserGroup g = new UserGroup();
-            g.setId(1);
-            g.setName("Old");
-            g.setDescription("Old desc");
-
-            when(userGroupRepository.findById(1)).thenReturn(Optional.of(g));
-            when(userGroupRepository.save(any())).thenReturn(g);
-
-            UserGroupDto req = UserGroupDto.builder().name("New").build();
-            UserGroupDto dto = userService.updateUserGroup(1, req);
-
-            assertThat(dto.getName()).isEqualTo("New");
-            assertThat(dto.getDescription()).isEqualTo("Old desc"); // unchanged
         }
     }
 

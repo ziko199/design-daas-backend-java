@@ -89,8 +89,10 @@ class UserGroupServiceTest {
         @Test
         @DisplayName("falls back to description when name is blank")
         void createUserGroup_blankName_fallsBackToDescription() {
-            UserGroupDto req =
-                    UserGroupDto.builder().name(" ").description("Fallback Desc").build();
+            UserGroupDto req = UserGroupDto.builder()
+                    .name(" ")
+                    .description("Fallback Desc")
+                    .build();
             when(userGroupRepository.save(any())).thenAnswer(inv -> {
                 UserGroup g = inv.getArgument(0);
                 g.setId(2);
@@ -160,9 +162,7 @@ class UserGroupServiceTest {
             when(userRepository.findAllById(new HashSet<>(List.of(1, 3)))).thenReturn(List.of(staying, joining));
             when(userGroupRepository.save(any())).thenReturn(group);
 
-            UserGroupDto req = UserGroupDto.builder()
-                    .userIds(List.of(1, 3))
-                    .build();
+            UserGroupDto req = UserGroupDto.builder().userIds(List.of(1, 3)).build();
             userGroupService.updateUserGroup(1, req);
 
             assertThat(leaving.getGroups()).doesNotContain(group);

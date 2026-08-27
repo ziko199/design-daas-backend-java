@@ -57,7 +57,8 @@ class UserServiceTest {
         // repository — its behaviour is simple enough not to need its own mock here,
         // and using the real thing keeps these tests exercising the actual validation rules.
         AccountValidator accountValidator = new AccountValidator(userRepository);
-        userService = new UserService(userRepository, userGroupRepository, passwordEncoder, mailService, accountValidator);
+        userService =
+                new UserService(userRepository, userGroupRepository, passwordEncoder, mailService, accountValidator);
     }
 
     // -------------------------------------------------------------------------

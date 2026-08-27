@@ -5,40 +5,41 @@
     <title>DESIGN DaaS — Application Access Request</title>
 </head>
 <body style="font-family: Arial, sans-serif; color: #222; margin: 0; padding: 24px; background-color: #f4f4f4;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="480" cellpadding="0" cellspacing="0"
-                       style="background-color: #ffffff; border-radius: 8px; padding: 32px;">
-                    <tr>
-                        <td>
-                            <h1 style="font-size: 20px; margin: 0 0 16px;">Application Access Request</h1>
-                            <p style="margin: 0 0 16px;">A user has requested access to an application.</p>
-                            <table role="presentation" cellpadding="4" cellspacing="0" style="margin: 0 0 16px;">
-                                <tr>
-                                    <td style="color: #666;">User:</td>
-                                    <td>
-                                        <span th:text="${userName}">Jane Doe</span>
-                                        (ID: <span th:text="${userId}">1</span>)
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #666;">Email:</td>
-                                    <td th:text="${userEmail}">jane@example.com</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #666;">Application:</td>
-                                    <td th:text="${application}">some-app</td>
-                                </tr>
-                            </table>
-                            <p style="margin: 0; color: #666; font-size: 13px;">
-                                Please review and configure the appropriate permissions.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<table cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+        <td align="center">
+            <table cellpadding="0" cellspacing="0" role="presentation"
+                   style="background-color: #ffffff; border-radius: 8px; padding: 32px;"
+                   width="480">
+                <tr>
+                    <td>
+                        <h1 style="font-size: 20px; margin: 0 0 16px;">Application Access Request</h1>
+                        <p style="margin: 0 0 16px;">A user has requested access to an application.</p>
+                        <table cellpadding="4" cellspacing="0" role="presentation" style="margin: 0 0 16px;">
+                            <tr>
+                                <td style="color: #666;">User:</td>
+                                <td>
+                                    <span th:text="${userName}">Jane Doe</span>
+                                    (ID: <span th:text="${userId}">1</span>)
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="color: #666;">Email:</td>
+                                <td th:text="${userEmail}">jane@example.com</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #666;">Application:</td>
+                                <td th:text="${application}">some-app</td>
+                            </tr>
+                        </table>
+                        <p style="margin: 0; color: #666; font-size: 13px;">
+                            Please review and configure the appropriate permissions.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
 </html>

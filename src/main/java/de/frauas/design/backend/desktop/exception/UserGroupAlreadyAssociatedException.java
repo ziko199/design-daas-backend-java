@@ -14,4 +14,3 @@ public class UserGroupAlreadyAssociatedException extends ConflictException {
         super("UserGroup " + userGroupId + " is already associated with DesktopGroup " + desktopGroupId);
     }
 }
-

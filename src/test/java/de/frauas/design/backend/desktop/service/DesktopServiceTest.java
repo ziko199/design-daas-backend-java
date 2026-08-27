@@ -105,10 +105,8 @@ class DesktopServiceTest {
         @Test
         @DisplayName("createDesktopGroup falls back to description when name is blank")
         void createDesktopGroup_blankName_fallsBackToDescription() {
-            DesktopGroupDto req = DesktopGroupDto.builder()
-                    .name(" ")
-                    .description("Group 1")
-                    .build();
+            DesktopGroupDto req =
+                    DesktopGroupDto.builder().name(" ").description("Group 1").build();
             when(desktopGroupRepository.save(any())).thenAnswer(inv -> {
                 DesktopGroup g = inv.getArgument(0);
                 g.setId(1);

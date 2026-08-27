@@ -1,5 +1,6 @@
 package de.frauas.design.backend.shared;
 
+import de.frauas.design.backend.desktop.exception.UserGroupAlreadyAssociatedException;
 import de.frauas.design.backend.shared.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("400 Validation failed: {}", msg);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(msg));
+    }
+
+    @ExceptionHandler(UserGroupAlreadyAssociatedException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(UserGroupAlreadyAssociatedException ex) {
+        log.warn("409 Conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -16,6 +16,9 @@ import lombok.ToString;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A single virtual desktop, optionally organised into one or more {@link DesktopGroup}s.
+ */
 @Entity
 @Table(name = "desktops")
 @Getter

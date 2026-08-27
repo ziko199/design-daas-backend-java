@@ -1,5 +1,6 @@
 package de.frauas.design.backend.desktop.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -21,8 +22,10 @@ public class DesktopCreateRequest {
     private String description;
 
     /** Optional — cascade-create desktop sub-groups on creation. */
+    @Valid
     private List<SubGroupRequest> groups;
 
+    /** A desktop sub-group to be created alongside the parent desktop. */
     @Data
     public static class SubGroupRequest {
         private String name;

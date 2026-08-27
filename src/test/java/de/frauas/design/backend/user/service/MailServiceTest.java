@@ -1,0 +1,123 @@
+package de.frauas.design.backend.user.service;
+
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.spring6.dialect.SpringStandardDialect;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
+
+import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("MailService")
+class MailServiceTest {
+
+    @Mock
+    JavaMailSender mailSender;
+
+    MailService mailService;
+
+    /** Real Thymeleaf engine resolving the actual templates/mail/*.html files, so rendering is genuinely exercised. */
+    private TemplateEngine realTemplateEngine() {
+        ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode("HTML");
+        resolver.setCharacterEncoding("UTF-8");
+        TemplateEngine engine = new TemplateEngine();
+        engine.setDialect(new SpringStandardDialect());
+        engine.setTemplateResolver(resolver);
+        return engine;
+    }
+
+    private MimeMessage newMimeMessage() {
+        return new MimeMessage(Session.getDefaultInstance(new Properties()));
+    }
+
+    @BeforeEach
+    void setUp() {
+        mailService = new MailService(mailSender, realTemplateEngine());
+    }
+
+    @Nested
+    @DisplayName("sendRegistrationCode")
+    class SendRegistrationCode {
+
+        @Test
+        @DisplayName("does not send when mail is disabled, only logs")
+        void mailDisabled_doesNotSend() {
+            ReflectionTestUtils.setField(mailService, "mailEnabled", false);
+
+            mailService.sendRegistrationCode("alice@example.com", "ABCD1234", 24);
+
+            verify(mailSender, never()).createMimeMessage();
+            verify(mailSender, never()).send(any(MimeMessage.class));
+        }
+
+        @Test
+        @DisplayName("renders the registration-code template and sends it as HTML")
+        void mailEnabled_rendersTemplateAndSends() throws Exception {
+            ReflectionTestUtils.setField(mailService, "mailEnabled", true);
+            ReflectionTestUtils.setField(mailService, "fromAddress", "noreply@design.local");
+            MimeMessage message = newMimeMessage();
+            when(mailSender.createMimeMessage()).thenReturn(message);
+
+            mailService.sendRegistrationCode("alice@example.com", "ABCD1234", 24);
+
+            verify(mailSender).send(message);
+            assertThat(message.getAllRecipients()).extracting(Object::toString).containsExactly("alice@example.com");
+            assertThat(message.getSubject()).isEqualTo("DESIGN DaaS — Email Verification");
+            assertThat(message.getContent().toString()).contains("ABCD1234").contains("24");
+        }
+    }
+
+    @Nested
+    @DisplayName("sendApplicationRequestEmail")
+    class SendApplicationRequestEmail {
+
+        @Test
+        @DisplayName("does not send when mail is disabled, only logs")
+        void mailDisabled_doesNotSend() {
+            ReflectionTestUtils.setField(mailService, "mailEnabled", false);
+
+            mailService.sendApplicationRequestEmail("alice@example.com", "Alice", "1", "some-app");
+
+            verify(mailSender, never()).createMimeMessage();
+            verify(mailSender, never()).send(any(MimeMessage.class));
+        }
+
+        @Test
+        @DisplayName("renders the application-request template, reply-to's the requester, and sends it as HTML")
+        void mailEnabled_rendersTemplateAndSends() throws Exception {
+            ReflectionTestUtils.setField(mailService, "mailEnabled", true);
+            ReflectionTestUtils.setField(mailService, "fromAddress", "noreply@design.local");
+            MimeMessage message = newMimeMessage();
+            when(mailSender.createMimeMessage()).thenReturn(message);
+
+            mailService.sendApplicationRequestEmail("alice@example.com", "Alice", "1", "some-app");
+
+            verify(mailSender).send(message);
+            assertThat(message.getAllRecipients()).extracting(Object::toString).containsExactly("noreply@design.local");
+            assertThat(message.getReplyTo()).extracting(Object::toString).containsExactly("alice@example.com");
+            assertThat(message.getContent().toString())
+                    .contains("Alice")
+                    .contains("alice@example.com")
+                    .contains("some-app");
+        }
+    }
+}

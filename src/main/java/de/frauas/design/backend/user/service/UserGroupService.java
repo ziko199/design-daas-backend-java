@@ -53,15 +53,16 @@ public class UserGroupService {
     @Transactional
     public UserGroupDto createUserGroup(UserGroupDto request) {
         log.debug("createUserGroup — name={}", request.getName());
-        if (request.getName() == null || request.getName().isBlank()) {
-            request.setName(request.getDescription());
+        String name = request.getName();
+        if (name == null || name.isBlank()) {
+            name = request.getDescription();
         }
-        if (request.getName() == null || request.getName().isBlank()) {
+        if (name == null || name.isBlank()) {
             log.warn("createUserGroup — rejected: name and description both blank");
             throw new UserGroupNameRequiredException();
         }
         UserGroup group = new UserGroup();
-        group.setName(request.getName());
+        group.setName(name);
         group.setDescription(request.getDescription());
         userGroupRepository.save(group);
         log.info("createUserGroup — created id={} name={}", group.getId(), group.getName());

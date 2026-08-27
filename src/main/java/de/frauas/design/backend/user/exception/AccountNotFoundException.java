@@ -12,6 +12,6 @@ import java.util.NoSuchElementException;
 public class AccountNotFoundException extends NoSuchElementException {
 
     public AccountNotFoundException(Integer id) {
-        super("User not found: " + id);
+        super("Account not found: " + id);
     }
 }

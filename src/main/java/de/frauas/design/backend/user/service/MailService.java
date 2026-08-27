@@ -1,24 +1,37 @@
 package de.frauas.design.backend.user.service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+
+import java.nio.charset.StandardCharsets;
 
 /**
- * Sends transactional emails (e.g. registration code) when mail is enabled.
+ * Sends transactional emails (e.g. registration code) when mail is enabled, rendering
+ * their bodies from the HTML templates under {@code templates/mail/} via Thymeleaf.
  *
  * <p>Set {@code MAIL_ENABLED=true} and the MAIL_* env vars to activate.
- * When disabled, the code is logged at INFO level so manual testing remains possible.</p>
+ * When disabled, the recipient and template variables are logged at INFO level instead,
+ * so manual testing remains possible without an SMTP server.</p>
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MailService {
 
+    private static final String REGISTRATION_CODE_TEMPLATE = "mail/registration-code";
+    private static final String APPLICATION_REQUEST_TEMPLATE = "mail/application-request";
+
     private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
 
     @Value("${app.mail.enabled:false}")
     private boolean mailEnabled;
@@ -26,25 +39,29 @@ public class MailService {
     @Value("${app.mail.from:noreply@design.local}")
     private String fromAddress;
 
-    public void sendRegistrationCode(String toEmail, String registrationCode) {
+    /**
+     * Sends the one-time email-verification code using the {@code mail/registration-code}
+     * template.
+     *
+     * @param toEmail the recipient's email address
+     * @param registrationCode the one-time code to embed in the email
+     * @param expiresInHours how many hours the code remains valid, shown to the recipient
+     */
+    public void sendRegistrationCode(String toEmail, String registrationCode, int expiresInHours) {
         if (!mailEnabled) {
             log.info("Mail disabled — registration code for {}: {}", toEmail, registrationCode);
             return;
         }
-        SimpleMailMessage msg = new SimpleMailMessage();
-        msg.setFrom(fromAddress);
-        msg.setTo(toEmail);
-        msg.setSubject("DESIGN DaaS — Email Verification");
-        msg.setText("Welcome to DESIGN DaaS!\n\n" + "Your registration code is: "
-                + registrationCode + "\n\n" + "This code expires in 24 hours.\n\n"
-                + "Use POST /user/validate_email with your email and this code to activate your account.");
-        mailSender.send(msg);
+        Context context = new Context();
+        context.setVariable("registrationCode", registrationCode);
+        context.setVariable("expiresInHours", expiresInHours);
+        send(toEmail, "DESIGN DaaS — Email Verification", REGISTRATION_CODE_TEMPLATE, context);
         log.info("Registration code sent to {}", toEmail);
     }
 
     /**
-     * Sends an application-access request email to notify administrators.
-     * Mirrors PHP MailService::enqueueApplicationRequestEmail().
+     * Sends an application-access request email to notify administrators, using the
+     * {@code mail/application-request} template.
      *
      * @param userEmail   the requesting user's email
      * @param userName    the requesting user's display name
@@ -57,16 +74,59 @@ public class MailService {
                     "Mail disabled — application request from user {} (id={}) for: {}", userEmail, userId, application);
             return;
         }
-        SimpleMailMessage msg = new SimpleMailMessage();
-        msg.setFrom(fromAddress);
-        msg.setTo(fromAddress); // send to the admin/system address
-        msg.setReplyTo(userEmail);
-        msg.setSubject("DESIGN DaaS — Application Access Request");
-        msg.setText("A user has requested access to an application.\n\n" + "User: "
-                + userName + " (ID: " + userId + ")\n" + "Email: "
-                + userEmail + "\n" + "Application: "
-                + application + "\n\n" + "Please review and configure the appropriate permissions.");
-        mailSender.send(msg);
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("userId", userId);
+        context.setVariable("userEmail", userEmail);
+        context.setVariable("application", application);
+        sendReplyTo(
+                fromAddress,
+                userEmail,
+                "DESIGN DaaS — Application Access Request",
+                APPLICATION_REQUEST_TEMPLATE,
+                context);
         log.info("Application request email sent for user {} requesting {}", userEmail, application);
+    }
+
+    /**
+     * Renders {@code templateName} with {@code context} and sends it as an HTML email
+     * from {@link #fromAddress} to {@code toEmail}.
+     *
+     * @param toEmail the recipient's email address
+     * @param subject the email subject line
+     * @param templateName the Thymeleaf template name (under {@code templates/}, no extension)
+     * @param context the template variables
+     * @throws MailSendException if the message could not be assembled
+     */
+    private void send(String toEmail, String subject, String templateName, Context context) {
+        sendReplyTo(toEmail, null, subject, templateName, context);
+    }
+
+    /**
+     * Renders {@code templateName} with {@code context} and sends it as an HTML email
+     * from {@link #fromAddress} to {@code toEmail}, optionally setting a reply-to address.
+     *
+     * @param toEmail the recipient's email address
+     * @param replyTo the reply-to address, or {@code null} to omit it
+     * @param subject the email subject line
+     * @param templateName the Thymeleaf template name (under {@code templates/}, no extension)
+     * @param context the template variables
+     * @throws MailSendException if the message could not be assembled
+     */
+    private void sendReplyTo(String toEmail, String replyTo, String subject, String templateName, Context context) {
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+            helper.setFrom(fromAddress);
+            helper.setTo(toEmail);
+            if (replyTo != null) {
+                helper.setReplyTo(replyTo);
+            }
+            helper.setSubject(subject);
+            helper.setText(templateEngine.process(templateName, context), true);
+        } catch (MessagingException e) {
+            throw new MailSendException("Failed to build email from template " + templateName, e);
+        }
+        mailSender.send(message);
     }
 }

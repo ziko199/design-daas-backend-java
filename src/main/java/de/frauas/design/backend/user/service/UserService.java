@@ -73,7 +73,7 @@ public class UserService {
         }
         userRepository.save(user);
         log.info("createUser — user created id={} email={}", user.getId(), LogMasking.maskEmail(user.getEmail()));
-        mailService.sendRegistrationCode(user.getEmail(), user.getRegistrationCode());
+        mailService.sendRegistrationCode(user.getEmail(), user.getRegistrationCode(), REGISTRATION_CODE_TIMEOUT_HOURS);
         return UserDto.from(user);
     }
 

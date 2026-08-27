@@ -1,5 +1,6 @@
 package de.frauas.design.backend.user.dto;
 
+import de.frauas.design.backend.user.validation.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -23,9 +24,8 @@ public class PatchUserRequest {
     @Email(message = "email must be a valid e-mail address")
     private String email;
 
-    /** Same regex as CreateUserRequest / UserService.PASSWORD_REGEX. */
     @Pattern(
-            regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$",
+            regexp = PasswordPolicy.PASSWORD_REGEX,
             message = "password must be at least 8 characters and contain uppercase, lowercase, and a digit")
     private String password;
 

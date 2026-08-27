@@ -4,6 +4,7 @@ import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.exception.EmailAlreadyInUseException;
 import de.frauas.design.backend.user.exception.WeakPasswordException;
 import de.frauas.design.backend.user.repository.UserRepository;
+import de.frauas.design.backend.user.validation.PasswordPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -19,9 +20,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AccountValidator {
 
-    /** Minimum 8 chars, at least one uppercase, one lowercase, one digit. */
-    private static final String PASSWORD_REGEX = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).{8,}$";
-
     private final UserRepository userRepository;
 
     /**
@@ -31,7 +29,7 @@ public class AccountValidator {
      * @throws WeakPasswordException if the password is {@code null} or fails the strength policy
      */
     public void validatePassword(String password) {
-        if (password == null || !password.matches(PASSWORD_REGEX)) {
+        if (password == null || !password.matches(PasswordPolicy.PASSWORD_REGEX)) {
             log.warn("validatePassword — rejected weak password");
             throw new WeakPasswordException();
         }

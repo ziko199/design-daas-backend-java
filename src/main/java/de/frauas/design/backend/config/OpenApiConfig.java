@@ -8,9 +8,19 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configures the OpenAPI/Swagger UI document: general API metadata plus the bearer-JWT
+ * security scheme used by every protected endpoint.
+ */
 @Configuration
 public class OpenApiConfig {
 
+    /**
+     * Builds the OpenAPI document, registering {@code bearerAuth} as a JWT bearer
+     * security scheme so Swagger UI can send {@code Authorization: Bearer <token>}.
+     *
+     * @return the configured {@link OpenAPI} bean
+     */
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()

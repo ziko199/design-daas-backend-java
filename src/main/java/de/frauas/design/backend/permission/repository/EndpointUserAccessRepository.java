@@ -6,6 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Repository for direct per-user, per-endpoint permission rules (resolution step 1).
+ */
 @Repository
 public interface EndpointUserAccessRepository extends JpaRepository<EndpointUserAccess, Integer> {
     Optional<EndpointUserAccess> findByUserIdAndEndpoint_FunctionName(Integer userId, String functionName);

@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 
+/**
+ * Persistence access for issued JWT access tokens and their revocation metadata.
+ */
 @Repository
 public interface AccessTokenRepository extends JpaRepository<AccessTokenEntity, Long> {
 

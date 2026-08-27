@@ -7,6 +7,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repository for per-user-group, per-endpoint-group permission rules (resolution step 4).
+ */
 @Repository
 public interface EndpointGroupUserGroupAccessRepository extends JpaRepository<EndpointGroupUserGroupAccess, Integer> {
 

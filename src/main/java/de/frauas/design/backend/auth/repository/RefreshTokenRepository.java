@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 
+/**
+ * Persistence access for issued opaque refresh tokens and their revocation state.
+ */
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity, Long> {
 

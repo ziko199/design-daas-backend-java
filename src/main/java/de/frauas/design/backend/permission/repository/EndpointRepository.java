@@ -6,7 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Repository for individual callable design-daas functions.
+ */
 @Repository
 public interface EndpointRepository extends JpaRepository<Endpoint, Integer> {
+
+    /** Finds an endpoint by its unique function name. */
     Optional<Endpoint> findByFunctionName(String functionName);
 }

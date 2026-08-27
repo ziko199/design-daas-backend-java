@@ -96,7 +96,7 @@ public class PermissionController {
      * Resolves the user ID from either the body-supplied token or the Authorization header JWT.
      *
      * @param bodyToken the raw JWT string from the request body (may be null)
-     * @param authJwt   the JWT from the Authorization header (may be null)
+     * @param authJwt the JWT from the Authorization header (may be null)
      * @return the user ID, or null if no valid token is available
      */
     private Integer resolveUserId(String bodyToken, Jwt authJwt) {

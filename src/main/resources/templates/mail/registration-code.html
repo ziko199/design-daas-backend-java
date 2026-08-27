@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>DESIGN DaaS — Email Verification</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #222; margin: 0; padding: 24px; background-color: #f4f4f4;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+                       style="background-color: #ffffff; border-radius: 8px; padding: 32px;">
+                    <tr>
+                        <td>
+                            <h1 style="font-size: 20px; margin: 0 0 16px;">Welcome to DESIGN DaaS!</h1>
+                            <p style="margin: 0 0 16px;">
+                                Please confirm your email address using the registration code below.
+                            </p>
+                            <p style="text-align: center; margin: 0 0 16px;">
+                                <span th:text="${registrationCode}"
+                                      style="display: inline-block; font-size: 28px; font-weight: bold;
+                                             letter-spacing: 4px; padding: 12px 20px; background-color: #eef2ff;
+                                             border-radius: 6px;">ABCDEF01</span>
+                            </p>
+                            <p style="margin: 0 0 16px;">
+                                This code expires in <span th:text="${expiresInHours}">24</span> hours.
+                            </p>
+                            <p style="margin: 0; color: #666; font-size: 13px;">
+                                Use <code>POST /user/validate_email</code> with your email and this code to
+                                activate your account.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

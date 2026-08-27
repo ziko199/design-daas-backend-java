@@ -1,7 +1,7 @@
 package de.frauas.design.backend.shared;
 
-import de.frauas.design.backend.desktop.exception.UserGroupAlreadyAssociatedException;
 import de.frauas.design.backend.shared.dto.ErrorResponse;
+import de.frauas.design.backend.shared.exception.ConflictException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,8 +46,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(msg));
     }
 
-    @ExceptionHandler(UserGroupAlreadyAssociatedException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(UserGroupAlreadyAssociatedException ex) {
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
         log.warn("409 Conflict: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
     }

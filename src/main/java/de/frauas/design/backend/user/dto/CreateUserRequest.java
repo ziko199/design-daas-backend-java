@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.util.List;
 
+/** Request payload for registering a regular user account. */
 @Data
 public class CreateUserRequest {
     @NotBlank

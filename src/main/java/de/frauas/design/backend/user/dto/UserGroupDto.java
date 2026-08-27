@@ -15,7 +15,7 @@ import java.util.List;
  * <p>Note: {@code name} is intentionally not annotated with bean-validation constraints
  * because {@code UserGroupController#createUserGroup} allows a blank name to fall back
  * to {@code description} (mirroring the legacy PHP behaviour). Emptiness of both fields
- * together is rejected by {@link de.frauas.design.backend.user.service.UserService}.</p>
+ * together is rejected by {@link de.frauas.design.backend.user.service.UserGroupService}.</p>
  */
 @Data
 @Builder

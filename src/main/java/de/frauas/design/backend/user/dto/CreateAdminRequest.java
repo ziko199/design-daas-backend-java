@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
+/** Request payload for creating an administrator account. */
 @Data
 public class CreateAdminRequest {
     @NotBlank

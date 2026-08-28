@@ -37,17 +37,18 @@ public class DesktopController {
      */
     @GetMapping("/desktops")
     public ResponseEntity<List<DesktopDto>> getAllDesktops() {
+
         log.info("GET /desktops — listing all desktops");
 
         List<DesktopDto> desktops = desktopService.getAllDesktops();
 
-        log.debug("GET /desktops — returning {} desktops", desktops.size());
+        log.info("GET /desktops — returning {} desktops", desktops.size());
 
         return ResponseEntity.ok(desktops);
     }
 
     /**
-     * Creates a new desktop, optionally cascade-creating desktop sub-groups for it.
+     * Creates a new desktop, optionally cascade-creating desktop subgroups for it.
      * Business rules (e.g. {@code name} falling back to {@code description} when blank)
      * are enforced by {@link DesktopService#createDesktop}, not here.
      *
@@ -56,6 +57,7 @@ public class DesktopController {
      */
     @PostMapping("/desktop")
     public ResponseEntity<DesktopDto> createDesktop(@Valid @RequestBody DesktopCreateRequest request) {
+
         log.info("POST /desktop — creating desktop name={}", request.getName());
 
         DesktopDto result = desktopService.createDesktop(request);
@@ -70,10 +72,11 @@ public class DesktopController {
      *
      * @param id the desktop ID
      * @return 200 OK with the matching {@link DesktopDto}
-     * @throws DesktopNotFoundException if no desktop exists with the given id (mapped to 404)
+     * @throws DesktopNotFoundException if no desktop exists with the given id
      */
     @GetMapping("/desktop/{id}")
     public ResponseEntity<DesktopDto> getDesktopById(@PathVariable Integer id) {
+
         log.info("GET /desktop/{} — fetching desktop", id);
 
         return ResponseEntity.ok(desktopService.getDesktopById(id));

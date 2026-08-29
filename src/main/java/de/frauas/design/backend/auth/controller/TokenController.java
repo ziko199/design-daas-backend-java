@@ -2,6 +2,7 @@ package de.frauas.design.backend.auth.controller;
 
 import de.frauas.design.backend.auth.dto.GrantRequest;
 import de.frauas.design.backend.auth.dto.TokenResponseDto;
+import de.frauas.design.backend.auth.exception.TokenEndpoint;
 import de.frauas.design.backend.auth.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/oauth2/user")
 @RequiredArgsConstructor
 @Slf4j
+@TokenEndpoint
 public class TokenController {
 
     private final TokenService tokenService;

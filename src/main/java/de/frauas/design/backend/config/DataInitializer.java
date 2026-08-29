@@ -26,6 +26,7 @@ import java.util.UUID;
 @Slf4j
 public class DataInitializer implements ApplicationRunner {
 
+    private static final String DEFAULT_ADMIN_PASSWORD = "Admin123!";
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -43,6 +44,12 @@ public class DataInitializer implements ApplicationRunner {
 
     private void createDefaultAdmin() {
         if (userRepository.findByEmail(adminEmail).isEmpty()) {
+            if (DEFAULT_ADMIN_PASSWORD.equals(adminPassword)) {
+                log.warn(
+                        "ADMIN_PASSWORD is not set; seeding default admin '{}' with a well-known default "
+                                + "password. Set ADMIN_PASSWORD before deploying to production.",
+                        adminEmail);
+            }
             Admin admin = new Admin();
             admin.setGuid(UUID.randomUUID().toString());
             admin.setName("Default Admin");

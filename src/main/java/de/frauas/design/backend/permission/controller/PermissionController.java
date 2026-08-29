@@ -22,9 +22,11 @@ import java.util.Map;
  * Exposes endpoints used by design-daas to check whether a given user is allowed
  * to invoke a given function.
  *
- * <p>All endpoints require an admin-scoped bearer token ({@code SCOPE_admin}), enforced
- * once at class level via {@link PreAuthorize} since every handler shares the same
- * requirement.</p>
+ * <p>{@code GET /permissions/{functionName}/{userId}} requires an admin-scoped bearer
+ * token ({@code SCOPE_admin}), since it lets the caller check permissions for an
+ * arbitrary user. {@code POST /permissions_info} only requires an authenticated caller:
+ * it resolves the user either from a token in the request body or from the caller's own
+ * JWT, so a regular user can check their own permissions.</p>
  */
 @RestController
 @RequiredArgsConstructor

@@ -7,7 +7,7 @@ import de.frauas.design.backend.user.exception.WeakPasswordException;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 /**
  * Enforces account-related business rules shared by user and administrator services.
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  * <p>Currently validates password strength and email uniqueness.</p>
  */
 @Slf4j
-@Service
+@Component
 @RequiredArgsConstructor
 public class AccountValidator {
 
@@ -25,7 +25,7 @@ public class AccountValidator {
      * Validates the password against the configured password policy.
      *
      * @param password the plain-text password to validate
-     * @throws WeakPasswordException if the password is {@code null} or policy does not meet the password policy
+     * @throws WeakPasswordException if the password is {@code null} or does not meet the password policy
      */
     public void validatePassword(String password) {
         if (password == null || !password.matches(PasswordPolicy.PASSWORD_REGEX)) {

@@ -40,8 +40,7 @@ class PermissionControllerTest {
     @Test
     @DisplayName("throws IllegalArgumentException when request body is null")
     void permissionsInfo_nullBody_throwsBadRequest() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> permissionController.permissionsInfo(null, authJwt));
+        assertThatIllegalArgumentException().isThrownBy(() -> permissionController.permissionsInfo(null, authJwt));
 
         verifyNoInteractions(permissionService, jwtUserResolver);
     }

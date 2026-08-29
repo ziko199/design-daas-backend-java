@@ -73,8 +73,9 @@ public class PermissionController {
      * @param body request payload containing {@code function_name} and optionally {@code token};
      *             may be {@code null}
      * @param authJwt authenticated caller JWT, used as a fallback identity source
-     * @return {@code 400 Bad Request} for a missing/blank function name, otherwise an allow/deny
-     *         permission payload
+     * @return an allow/deny permission payload
+     * @throws IllegalArgumentException if {@code function_name} is missing/blank, mapped to
+     *         {@code 400 Bad Request} with an {@code ErrorResponse} body by {@code GlobalExceptionHandler}
      */
     @PostMapping("/permissions_info")
     public ResponseEntity<PermissionResultDto> permissionsInfo(
@@ -86,7 +87,7 @@ public class PermissionController {
 
         if (functionName == null || functionName.isBlank()) {
             log.warn("POST /permissions_info — missing function_name");
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("function_name is required");
         }
 
         Integer userId = resolveUserId(body.get("token"), authJwt);

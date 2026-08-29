@@ -18,6 +18,10 @@ import lombok.ToString;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Named collection of {@link Endpoint endpoints} used by the coarser-grained
+ * endpoint-group permission rules.
+ */
 @Entity
 @Table(name = "endpoint_groups")
 @Getter

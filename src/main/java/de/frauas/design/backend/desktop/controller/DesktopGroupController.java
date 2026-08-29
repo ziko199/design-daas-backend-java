@@ -7,6 +7,7 @@ import de.frauas.design.backend.desktop.service.DesktopService;
 import de.frauas.design.backend.shared.security.Authorities;
 import de.frauas.design.backend.user.dto.UserGroupDto;
 import de.frauas.design.backend.user.exception.UserGroupNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -38,9 +39,13 @@ public class DesktopGroupController {
      */
     @GetMapping("/desktop_groups")
     public ResponseEntity<List<DesktopGroupDto>> getAllDesktopGroups() {
+
         log.info("GET /desktop_groups — listing all desktop groups");
+
         List<DesktopGroupDto> groups = desktopService.getAllDesktopGroups();
-        log.debug("GET /desktop_groups — returning {} groups", groups.size());
+
+        log.info("GET /desktop_groups — returning {} groups", groups.size());
+
         return ResponseEntity.ok(groups);
     }
 
@@ -53,10 +58,14 @@ public class DesktopGroupController {
      * @return 200 OK with the created {@link DesktopGroupDto}
      */
     @PostMapping("/desktop_group")
-    public ResponseEntity<DesktopGroupDto> createDesktopGroup(@RequestBody DesktopGroupDto request) {
+    public ResponseEntity<DesktopGroupDto> createDesktopGroup(@Valid @RequestBody DesktopGroupDto request) {
+
         log.info("POST /desktop_group — creating desktop group name={}", request.getName());
+
         DesktopGroupDto result = desktopService.createDesktopGroup(request);
+
         log.info("POST /desktop_group — created id={} name={}", result.getId(), result.getName());
+
         return ResponseEntity.ok(result);
     }
 
@@ -74,9 +83,13 @@ public class DesktopGroupController {
     @PostMapping("/desktop_group/{id}/user_group/{userGroupId}")
     public ResponseEntity<List<UserGroupDto>> addUserGroup(
             @PathVariable Integer id, @PathVariable Integer userGroupId) {
+
         log.info("POST /desktop_group/{}/user_group/{} — adding user group", id, userGroupId);
+
         List<UserGroupDto> updatedUserGroups = desktopService.addUserGroupToDesktopGroup(id, userGroupId);
+
         log.info("POST /desktop_group/{}/user_group/{} — association created", id, userGroupId);
+
         return ResponseEntity.ok(updatedUserGroups);
     }
 }

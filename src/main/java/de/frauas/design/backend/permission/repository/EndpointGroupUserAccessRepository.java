@@ -4,16 +4,20 @@ import de.frauas.design.backend.permission.model.EndpointGroupUserAccess;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
+/**
+ * Repository for per-user, per-endpoint-group permission rules (resolution step 3).
+ */
 @Repository
 public interface EndpointGroupUserAccessRepository extends JpaRepository<EndpointGroupUserAccess, Integer> {
 
     /**
-     * Finds a user's endpoint-group access rule whose endpoint group contains an endpoint
-     * with the given function name. Filtering is done in the query so callers don't need to
-     * load every rule/endpoint-group for the user and filter in memory.
+     * Returns every user endpoint-group rule whose endpoint group contains the target function.
+     *
+     * <p>Filtering is done in the query so callers don't need to load every rule/endpoint-group for
+     * the user and filter in memory.</p>
      */
-    Optional<EndpointGroupUserAccess> findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(
+    List<EndpointGroupUserAccess> findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
             Integer userId, String functionName);
 }

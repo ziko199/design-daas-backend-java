@@ -21,11 +21,10 @@ public class DesktopCreateRequest {
     @NotBlank
     private String description;
 
-    /** Optional — cascade-create desktop sub-groups on creation. */
-    @Valid
-    private List<SubGroupRequest> groups;
+    /** Optional — cascade-create desktop subgroups on creation. */
+    private List<@Valid SubGroupRequest> groups;
 
-    /** A desktop sub-group to be created alongside the parent desktop. */
+    /** A desktop subgroup to be created alongside the parent desktop. */
     @Data
     public static class SubGroupRequest {
         private String name;

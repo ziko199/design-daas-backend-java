@@ -1,10 +1,12 @@
 package de.frauas.design.backend.user.service;
 
+import de.frauas.design.backend.shared.util.LogMasking;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -31,6 +33,7 @@ public class MailService {
     private static final String APPLICATION_REQUEST_TEMPLATE = "mail/application-request";
 
     private final JavaMailSender mailSender;
+
     private final TemplateEngine templateEngine;
 
     @Value("${app.mail.enabled:false}")
@@ -49,14 +52,17 @@ public class MailService {
      */
     public void sendRegistrationCode(String toEmail, String registrationCode, int expiresInHours) {
         if (!mailEnabled) {
-            log.info("Mail disabled — registration code for {}: {}", toEmail, registrationCode);
+            log.info(
+                    "Mail disabled — skipping registration email to {} (expiresInHours={})",
+                    LogMasking.maskEmail(toEmail),
+                    expiresInHours);
             return;
         }
         Context context = new Context();
         context.setVariable("registrationCode", registrationCode);
         context.setVariable("expiresInHours", expiresInHours);
         send(toEmail, "DESIGN DaaS — Email Verification", REGISTRATION_CODE_TEMPLATE, context);
-        log.info("Registration code sent to {}", toEmail);
+        log.info("Registration code sent to {}", LogMasking.maskEmail(toEmail));
     }
 
     /**
@@ -71,7 +77,10 @@ public class MailService {
     public void sendApplicationRequestEmail(String userEmail, String userName, String userId, String application) {
         if (!mailEnabled) {
             log.info(
-                    "Mail disabled — application request from user {} (id={}) for: {}", userEmail, userId, application);
+                    "Mail disabled — skipping application request email for user={} id={} application={}",
+                    LogMasking.maskEmail(userEmail),
+                    userId,
+                    application);
             return;
         }
         Context context = new Context();
@@ -85,7 +94,10 @@ public class MailService {
                 "DESIGN DaaS — Application Access Request",
                 APPLICATION_REQUEST_TEMPLATE,
                 context);
-        log.info("Application request email sent for user {} requesting {}", userEmail, application);
+        log.info(
+                "Application request email sent for user {} requesting {}",
+                LogMasking.maskEmail(userEmail),
+                application);
     }
 
     /**
@@ -125,8 +137,24 @@ public class MailService {
             helper.setSubject(subject);
             helper.setText(templateEngine.process(templateName, context), true);
         } catch (MessagingException e) {
+            log.error(
+                    "sendReplyTo — failed to build template={} to={} replyTo={}",
+                    templateName,
+                    LogMasking.maskEmail(toEmail),
+                    LogMasking.maskEmail(replyTo),
+                    e);
             throw new MailSendException("Failed to build email from template " + templateName, e);
         }
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.error(
+                    "sendReplyTo — failed to send template={} to={} replyTo={}",
+                    templateName,
+                    LogMasking.maskEmail(toEmail),
+                    LogMasking.maskEmail(replyTo),
+                    e);
+            throw e;
+        }
     }
 }

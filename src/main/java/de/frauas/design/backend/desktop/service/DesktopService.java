@@ -58,42 +58,46 @@ public class DesktopService {
     @Transactional(readOnly = true)
     public DesktopDto getDesktopById(Integer id) {
         log.debug("getDesktopById — id={}", id);
-        return DesktopDto.from(desktopRepository.findById(id).orElseThrow(() -> new DesktopNotFoundException(id)));
+        return DesktopDto.from(findDesktopById(id));
     }
 
     /**
-     * Creates a new desktop, optionally cascade-creating desktop sub-groups for it.
+     * Creates a new desktop, optionally cascade-creating desktop subgroups for it.
      *
-     * <p>If a sub-group has no name, its description is used as the name instead — at
+     * <p>If a subgroup has no name, its description is used as the name instead — at
      * least one of the two must be present, enforced via {@link
      * DesktopCreateRequest.SubGroupRequest#getDescription()} being {@code @NotBlank}.</p>
      *
-     * @param req the desktop to create, plus any sub-groups to create alongside it
+     * @param request the desktop to create, plus any subgroups to create alongside it
      * @return the created desktop
      */
     @Transactional
-    public DesktopDto createDesktop(DesktopCreateRequest req) {
-        log.debug("createDesktop(DesktopCreateRequest) — name={}", req.getName());
-        Desktop d = new Desktop();
-        d.setName(resolveName(req.getName(), req.getDescription()));
-        d.setDescription(req.getDescription());
-        desktopRepository.save(d);
-        if (req.getGroups() != null) {
-            for (DesktopCreateRequest.SubGroupRequest sgReq : req.getGroups()) {
+    public DesktopDto createDesktop(DesktopCreateRequest request) {
+        log.debug("createDesktop(DesktopCreateRequest) — name={}", request.getName());
+
+        Desktop desktop = new Desktop();
+        desktop.setName(resolveName(request.getName(), request.getDescription()));
+        desktop.setDescription(request.getDescription());
+        Desktop savedDesktop = desktopRepository.save(desktop);
+        if (request.getGroups() != null) {
+            for (DesktopCreateRequest.SubGroupRequest sgReq : request.getGroups()) {
                 DesktopGroup g = new DesktopGroup();
                 g.setName(resolveName(sgReq.getName(), sgReq.getDescription()));
                 g.setDescription(sgReq.getDescription());
-                g.getDesktops().add(d);
+                linkDesktopAndGroup(savedDesktop, g);
                 desktopGroupRepository.save(g);
-                log.debug("createDesktop — created sub-group name={} for desktopId={}", g.getName(), d.getId());
+                log.debug(
+                        "createDesktop — created sub-group name={} for desktopId={}",
+                        g.getName(),
+                        savedDesktop.getId());
             }
         }
         log.info(
                 "createDesktop — desktop created id={} name={} groups={}",
-                d.getId(),
-                d.getName(),
-                req.getGroups() != null ? req.getGroups().size() : 0);
-        return DesktopDto.from(d);
+                savedDesktop.getId(),
+                savedDesktop.getName(),
+                request.getGroups() != null ? request.getGroups().size() : 0);
+        return DesktopDto.from(savedDesktop);
     }
 
     // ---- DesktopGroups ----
@@ -117,20 +121,20 @@ public class DesktopService {
      * <p>If no name is given, the description is used as the name instead — at least one
      * of the two must be present.</p>
      *
-     * @param req the group data; {@code name} falls back to {@code description} when blank
+     * @param request the group data; {@code name} falls back to {@code description} when blank
      * @return the created group
      * @throws DesktopGroupNameRequiredException if both {@code name} and {@code description}
      *     are blank
      */
     @Transactional
-    public DesktopGroupDto createDesktopGroup(DesktopGroupDto req) {
-        log.debug("createDesktopGroup — name={}", req.getName());
+    public DesktopGroupDto createDesktopGroup(DesktopGroupDto request) {
+        log.debug("createDesktopGroup — name={}", request.getName());
         DesktopGroup g = new DesktopGroup();
-        g.setName(resolveName(req.getName(), req.getDescription()));
-        g.setDescription(req.getDescription());
-        desktopGroupRepository.save(g);
-        log.info("createDesktopGroup — created id={} name={}", g.getId(), g.getName());
-        return DesktopGroupDto.from(g);
+        g.setName(resolveName(request.getName(), request.getDescription()));
+        g.setDescription(request.getDescription());
+        DesktopGroup savedGroup = desktopGroupRepository.save(g);
+        log.info("createDesktopGroup — created id={} name={}", savedGroup.getId(), savedGroup.getName());
+        return DesktopGroupDto.from(savedGroup);
     }
 
     /**
@@ -148,12 +152,8 @@ public class DesktopService {
     @Transactional
     public List<UserGroupDto> addUserGroupToDesktopGroup(Integer desktopGroupId, Integer userGroupId) {
         log.debug("addUserGroupToDesktopGroup — desktopGroupId={} userGroupId={}", desktopGroupId, userGroupId);
-        DesktopGroup dg = desktopGroupRepository
-                .findById(desktopGroupId)
-                .orElseThrow(() -> new DesktopGroupNotFoundException(desktopGroupId));
-        UserGroup ug = userGroupRepository
-                .findById(userGroupId)
-                .orElseThrow(() -> new UserGroupNotFoundException(userGroupId));
+        DesktopGroup dg = findDesktopGroupById(desktopGroupId);
+        UserGroup ug = findUserGroupById(userGroupId);
         if (ug.getDesktopGroups().contains(dg)) {
             log.warn(
                     "addUserGroupToDesktopGroup — desktopGroupId={} userGroupId={} already associated",
@@ -161,7 +161,7 @@ public class DesktopService {
                     userGroupId);
             throw new UserGroupAlreadyAssociatedException(desktopGroupId, userGroupId);
         }
-        ug.getDesktopGroups().add(dg);
+        linkUserGroupAndDesktopGroup(ug, dg);
         userGroupRepository.save(ug);
         log.info(
                 "addUserGroupToDesktopGroup — desktopGroupId={} userGroupId={} association created",
@@ -188,5 +188,44 @@ public class DesktopService {
             return description;
         }
         throw new DesktopGroupNameRequiredException();
+    }
+
+    private Desktop findDesktopById(Integer id) {
+        return desktopRepository.findById(id).orElseThrow(() -> {
+            log.warn("getDesktopById — desktopId={} not found", id);
+            return new DesktopNotFoundException(id);
+        });
+    }
+
+    private DesktopGroup findDesktopGroupById(Integer id) {
+        return desktopGroupRepository.findById(id).orElseThrow(() -> {
+            log.warn("addUserGroupToDesktopGroup — desktopGroupId={} not found", id);
+            return new DesktopGroupNotFoundException(id);
+        });
+    }
+
+    private UserGroup findUserGroupById(Integer id) {
+        return userGroupRepository.findById(id).orElseThrow(() -> {
+            log.warn("addUserGroupToDesktopGroup — userGroupId={} not found", id);
+            return new UserGroupNotFoundException(id);
+        });
+    }
+
+    private void linkDesktopAndGroup(Desktop desktop, DesktopGroup group) {
+        if (!group.getDesktops().contains(desktop)) {
+            group.getDesktops().add(desktop);
+        }
+        if (!desktop.getDesktopGroups().contains(group)) {
+            desktop.getDesktopGroups().add(group);
+        }
+    }
+
+    private void linkUserGroupAndDesktopGroup(UserGroup userGroup, DesktopGroup desktopGroup) {
+        if (!userGroup.getDesktopGroups().contains(desktopGroup)) {
+            userGroup.getDesktopGroups().add(desktopGroup);
+        }
+        if (!desktopGroup.getUserGroups().contains(userGroup)) {
+            desktopGroup.getUserGroups().add(userGroup);
+        }
     }
 }

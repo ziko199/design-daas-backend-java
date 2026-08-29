@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 /**
  * Base persistence entity for both regular {@link User}s and {@link Admin}s, mapped
  * with single-table inheritance (discriminated by the {@code role} column).
- * Holds shared credentials, registration/verification state, and SEC-H3 account-lockout
+ * Holds shared credentials, registration/verification state, and account-lockout
  * bookkeeping (failed login attempts / lock expiry).
  */
 @Entity
@@ -62,11 +62,11 @@ public abstract class BaseUser {
     @Column(name = "registration_used_moment")
     private LocalDateTime registrationUsedMoment;
 
-    /** SEC-H3: consecutive failed password attempts since last successful login. */
+    /** consecutive failed password attempts since last successful login. */
     @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts = 0;
 
-    /** SEC-H3: if non-null and in the future, the account is temporarily locked. */
+    /** if non-null and in the future, the account is temporarily locked. */
     @Column(name = "locked_until")
     private Instant lockedUntil;
 

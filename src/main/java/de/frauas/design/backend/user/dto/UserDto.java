@@ -1,6 +1,7 @@
 package de.frauas.design.backend.user.dto;
 
 import de.frauas.design.backend.user.model.User;
+import de.frauas.design.backend.user.model.UserGroup;
 import lombok.Builder;
 import lombok.Data;
 
@@ -23,7 +24,7 @@ public class UserDto {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .groups(user.getGroups().stream().map(g -> g.getId()).toList())
+                .groups(user.getGroups().stream().map(UserGroup::getId).toList())
                 .enabled(user.isEnabled())
                 .build();
     }

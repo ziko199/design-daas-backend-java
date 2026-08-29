@@ -1,6 +1,7 @@
 package de.frauas.design.backend.auth.service;
 
 import de.frauas.design.backend.auth.exception.AccountLockedException;
+import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.model.BaseUser;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,8 @@ public class AccountLockoutService {
      */
     public void assertNotLocked(BaseUser user) {
         if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
-            log.warn("assertNotLocked — login attempt on locked account user={}", user.getEmail());
+            log.warn(
+                    "assertNotLocked — login attempt on locked account user={}", LogMasking.maskEmail(user.getEmail()));
             throw new AccountLockedException();
         }
     }

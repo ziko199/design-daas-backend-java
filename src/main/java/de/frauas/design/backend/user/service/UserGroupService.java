@@ -3,6 +3,7 @@ package de.frauas.design.backend.user.service;
 import de.frauas.design.backend.user.dto.UserGroupDto;
 import de.frauas.design.backend.user.exception.UserGroupNameRequiredException;
 import de.frauas.design.backend.user.exception.UserGroupNotFoundException;
+import de.frauas.design.backend.user.model.BaseUser;
 import de.frauas.design.backend.user.model.User;
 import de.frauas.design.backend.user.model.UserGroup;
 import de.frauas.design.backend.user.repository.UserGroupRepository;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -53,16 +55,8 @@ public class UserGroupService {
     @Transactional
     public UserGroupDto createUserGroup(UserGroupDto request) {
         log.debug("createUserGroup — name={}", request.getName());
-        String name = request.getName();
-        if (name == null || name.isBlank()) {
-            name = request.getDescription();
-        }
-        if (name == null || name.isBlank()) {
-            log.warn("createUserGroup — rejected: name and description both blank");
-            throw new UserGroupNameRequiredException();
-        }
         UserGroup group = new UserGroup();
-        group.setName(name);
+        group.setName(resolveGroupName(request.getName(), request.getDescription(), "createUserGroup"));
         group.setDescription(request.getDescription());
         userGroupRepository.save(group);
         log.info("createUserGroup — created id={} name={}", group.getId(), group.getName());
@@ -82,11 +76,12 @@ public class UserGroupService {
     public UserGroupDto updateUserGroup(Integer id, UserGroupDto request) {
         log.debug("updateUserGroup — id={}", id);
         UserGroup group = userGroupRepository.findById(id).orElseThrow(() -> new UserGroupNotFoundException(id));
-        if (request.getName() != null) {
-            group.setName(request.getName());
-        }
-        if (request.getDescription() != null) {
-            group.setDescription(request.getDescription());
+        if (request.getName() != null || request.getDescription() != null) {
+            String updatedDescription =
+                    request.getDescription() != null ? request.getDescription() : group.getDescription();
+            String updatedName = request.getName() != null ? request.getName() : group.getName();
+            group.setName(resolveGroupName(updatedName, updatedDescription, "updateUserGroup"));
+            group.setDescription(updatedDescription);
         }
         if (request.getUserIds() != null) {
             syncGroupMembership(group, new HashSet<>(request.getUserIds()));
@@ -108,10 +103,7 @@ public class UserGroupService {
         Set<Integer> currentIds = current.stream().map(User::getId).collect(Collectors.toSet());
 
         // Load the full desired set (only User entities — admins have no groups)
-        List<User> desired = userRepository.findAllById(desiredIds).stream()
-                .filter(u -> u instanceof User)
-                .map(u -> (User) u)
-                .toList();
+        List<User> desired = loadDesiredUsersOrThrow(group.getId(), desiredIds);
 
         List<User> toRemove =
                 current.stream().filter(u -> !desiredIds.contains(u.getId())).toList();
@@ -124,11 +116,45 @@ public class UserGroupService {
         List<User> changed = new ArrayList<>(toRemove.size() + toAdd.size());
         changed.addAll(toRemove);
         changed.addAll(toAdd);
-        userRepository.saveAll(changed);
+        if (!changed.isEmpty()) {
+            userRepository.saveAll(changed);
+        }
         log.debug(
                 "syncGroupMembership — groupId={} removed={} added={}",
                 group.getId(),
                 toRemove.stream().map(User::getId).toList(),
                 toAdd.stream().map(User::getId).toList());
+    }
+
+    private String resolveGroupName(String name, String description, String operation) {
+        String resolvedName = name;
+        if (resolvedName == null || resolvedName.isBlank()) {
+            resolvedName = description;
+        }
+        if (resolvedName == null || resolvedName.isBlank()) {
+            log.warn("{} — rejected: name and description both blank", operation);
+            throw new UserGroupNameRequiredException();
+        }
+        return resolvedName;
+    }
+
+    private List<User> loadDesiredUsersOrThrow(Integer groupId, Set<Integer> desiredIds) {
+        Set<Integer> requestedIds = new LinkedHashSet<>(desiredIds);
+        if (requestedIds.isEmpty()) {
+            return List.of();
+        }
+        List<User> desired = userRepository.findAllById(requestedIds).stream()
+                .filter(BaseUser.class::isInstance)
+                .filter(User.class::isInstance)
+                .map(User.class::cast)
+                .toList();
+        Set<Integer> resolvedIds = desired.stream().map(User::getId).collect(Collectors.toSet());
+        List<Integer> invalidIds =
+                requestedIds.stream().filter(id -> !resolvedIds.contains(id)).toList();
+        if (!invalidIds.isEmpty()) {
+            log.warn("syncGroupMembership — invalid user ids={} for groupId={}", invalidIds, groupId);
+            throw new IllegalArgumentException("Unknown regular user ids: " + invalidIds);
+        }
+        return desired;
     }
 }

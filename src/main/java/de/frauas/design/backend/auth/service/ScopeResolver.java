@@ -1,6 +1,7 @@
 package de.frauas.design.backend.auth.service;
 
 import de.frauas.design.backend.auth.exception.InvalidScopeException;
+import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.model.BaseUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -41,7 +42,7 @@ public class ScopeResolver {
         if (!requested.equals(role)) {
             log.warn(
                     "resolveAuthorizedScope — scope escalation attempt by user={}: requested={}, role={}",
-                    user.getEmail(),
+                    LogMasking.maskEmail(user.getEmail()),
                     requested,
                     role);
             throw new InvalidScopeException();

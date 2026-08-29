@@ -12,6 +12,12 @@ import lombok.Setter;
 
 import java.time.Instant;
 
+/**
+ * Persisted record for every issued opaque refresh token.
+ *
+ * <p>Supports rotation/revocation: a token is looked up during the refresh grant and then
+ * marked revoked once it has been consumed or explicitly logged out.</p>
+ */
 @Entity
 @Table(name = "refresh_tokens")
 @Getter

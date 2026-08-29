@@ -19,7 +19,7 @@ import java.util.UUID;
  * <p>OAuth2 client registration has been removed: the token endpoint
  * ({@code POST /oauth2/user/token}) does not require a registered client.
  * Use environment variables {@code ADMIN_EMAIL} / {@code ADMIN_PASSWORD} to
- * override the default credentials (SEC-03).</p>
+ * override the default credentials.</p>
  */
 @Component
 @RequiredArgsConstructor

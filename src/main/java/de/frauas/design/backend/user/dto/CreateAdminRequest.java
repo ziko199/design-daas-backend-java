@@ -1,6 +1,6 @@
 package de.frauas.design.backend.user.dto;
 
-import de.frauas.design.backend.user.validation.PasswordPolicy;
+import de.frauas.design.backend.shared.util.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

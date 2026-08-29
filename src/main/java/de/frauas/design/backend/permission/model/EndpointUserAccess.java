@@ -13,6 +13,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Direct permission rule for one user and one endpoint (resolution step 1, most specific).
+ */
 @Entity
 @Table(name = "endpoint_user_access")
 @Getter

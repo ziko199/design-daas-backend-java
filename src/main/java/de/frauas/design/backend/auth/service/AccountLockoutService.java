@@ -62,7 +62,9 @@ public class AccountLockoutService {
         if (attempts >= MAX_FAILED_ATTEMPTS) {
             user.setLockedUntil(Instant.now().plus(LOCKOUT_DURATION));
             log.warn(
-                    "recordFailedAttempt — account locked after {} failed attempts user={}", attempts, user.getEmail());
+                    "recordFailedAttempt — account locked after {} failed attempts user={}",
+                    attempts,
+                    LogMasking.maskEmail(user.getEmail()));
         }
         userRepository.save(user);
     }

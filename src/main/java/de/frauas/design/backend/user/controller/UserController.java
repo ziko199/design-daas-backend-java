@@ -25,9 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * REST endpoints for self-service user registration/verification and admin-managed
- * user CRUD, plus the desktop-access-check and application-request endpoints used
- * by regular users.
+ * REST endpoints for self-service user registration/verification, admin-managed
+ * user CRUD, and application-access requests initiated by authenticated users.
  */
 @Slf4j
 @RestController

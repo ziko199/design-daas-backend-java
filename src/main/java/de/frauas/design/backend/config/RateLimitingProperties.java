@@ -1,40 +1,55 @@
 package de.frauas.design.backend.config;
 
+import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
 /**
- * Configuration properties for rate-limiting / brute-force protection.
+ * Configuration for API rate limiting and brute-force protection.
  *
- * <p>All limits are per-IP-address and use a sliding (greedy-refill) token bucket.
- * Set {@code app.rate-limiting.enabled=false} in tests to bypass the filter.</p>
+ * <p>Limits are applied per client IP address using a sliding
+ * token-bucket strategy. Rate limiting can be disabled for tests
+ * or other environments through {@code app.rate-limiting.enabled}.</p>
  */
-@Component
-@ConfigurationProperties(prefix = "app.rate-limiting")
 @Getter
 @Setter
+@Validated
+@ConfigurationProperties(prefix = "app.rate-limiting")
 public class RateLimitingProperties {
 
-    /** Master switch -- set to false in test profiles to bypass the filter. */
+    /**
+     * Enables or disables rate limiting.
+     */
     private boolean enabled = true;
 
-    /** Max requests per minute per IP for POST /oauth2/user/token. */
+    /**
+     * Maximum number of authentication-token requests per minute per IP.
+     */
+    @Min(1)
     private int authTokenRequestsPerMinute = 20;
 
-    /** Max requests per minute per IP for POST /user (registration). */
+    /**
+     * Maximum number of registration requests per minute per IP.
+     */
+    @Min(1)
     private int registerRequestsPerMinute = 5;
 
-    /** Max requests per minute per IP for POST /user/validate_email. */
+    /**
+     * Maximum number of email-validation requests per minute per IP.
+     */
+    @Min(1)
     private int validateEmailRequestsPerMinute = 10;
 
     /**
-     * Trusted reverse-proxy CIDR ranges. Only requests arriving from one of these
-     * ranges are allowed to use the {@code X-Forwarded-For} header for IP resolution.
-     * All other requests use {@code remoteAddr} directly to prevent spoofing.
+     * CIDR ranges of trusted reverse proxies.
+     *
+     * <p>{@code X-Forwarded-For} must only be trusted when the request
+     * originates from one of these proxy ranges. Requests from other
+     * sources should use the direct remote address to prevent IP spoofing.</p>
      */
     private List<String> trustedProxyRanges = List.of("127.0.0.1/32", "::1/128");
 }

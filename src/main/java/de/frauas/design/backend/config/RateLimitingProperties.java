@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Configuration properties for SEC-H3 rate-limiting / brute-force protection.
+ * Configuration properties for rate-limiting / brute-force protection.
  *
  * <p>All limits are per-IP-address and use a sliding (greedy-refill) token bucket.
  * Set {@code app.rate-limiting.enabled=false} in tests to bypass the filter.</p>

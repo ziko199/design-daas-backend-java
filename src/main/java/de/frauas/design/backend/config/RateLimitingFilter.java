@@ -9,12 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -103,6 +105,24 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
+     * Evicts token buckets that have not been touched for at least 2 minutes.
+     *
+     * <p>Without this, {@link #buckets} would grow without bound over the process
+     * lifetime as new client IPs make requests, since entries are never otherwise
+     * removed.</p>
+     */
+    @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
+    void evictStaleBuckets() {
+        long currentEpochMinute = System.currentTimeMillis() / 60_000L;
+        int sizeBefore = buckets.size();
+        buckets.values().removeIf(bucket -> bucket.isStale(currentEpochMinute));
+        int evicted = sizeBefore - buckets.size();
+        if (evicted > 0) {
+            log.debug("Rate-limit bucket cleanup: evicted {} stale entries, {} remaining", evicted, buckets.size());
+        }
+    }
+
+    /**
      * Resolves the real client IP. {@code X-Forwarded-For} is only trusted when
      * the direct connection ({@code remoteAddr}) comes from a configured trusted
      * proxy CIDR — otherwise the header is ignored to prevent spoofing.
@@ -178,6 +198,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                 }
                 // CAS failed — retry
             }
+        }
+
+        /** True if this bucket's window is at least 2 minutes older than {@code currentEpochMinute}. */
+        boolean isStale(long currentEpochMinute) {
+            long storedMin = state.get() >>> 32;
+            return currentEpochMinute - storedMin >= 2;
         }
     }
 }

@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -87,7 +86,6 @@ class TokenServiceTest {
                 userRepository,
                 passwordEncoder,
                 refreshTokenRepository,
-                accessTokenRepository,
                 accountLockoutService,
                 scopeResolver,
                 tokenIssuer);
@@ -409,75 +407,6 @@ class TokenServiceTest {
             Method method = TokenService.class.getMethod("grantToken", GrantRequest.class);
 
             assertThat(method.isAnnotationPresent(Transactional.class)).isTrue();
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Logout
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("logout")
-    class Logout {
-
-        @Test
-        @DisplayName("revokes the access token identified by the JWT's jti")
-        void revokesAccessTokenByJti() {
-            AccessTokenEntity at = new AccessTokenEntity();
-            at.setJti("jti-1");
-            at.setUserId(1);
-            when(encodedJwt.getId()).thenReturn("jti-1");
-            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
-
-            tokenService.logout(encodedJwt, null);
-
-            assertThat(at.isRevoked()).isTrue();
-            verify(accessTokenRepository).save(at);
-            verifyNoInteractions(refreshTokenRepository);
-        }
-
-        @Test
-        @DisplayName("also revokes the given refresh token when supplied")
-        void revokesRefreshTokenWhenSupplied() {
-            AccessTokenEntity at = new AccessTokenEntity();
-            at.setJti("jti-1");
-            RefreshTokenEntity rt = new RefreshTokenEntity();
-            rt.setTokenValue("refresh-1");
-            when(encodedJwt.getId()).thenReturn("jti-1");
-            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
-            when(refreshTokenRepository.findActiveByTokenValue("refresh-1")).thenReturn(Optional.of(rt));
-
-            tokenService.logout(encodedJwt, "refresh-1");
-
-            assertThat(at.isRevoked()).isTrue();
-            assertThat(rt.isRevoked()).isTrue();
-            verify(refreshTokenRepository).save(rt);
-        }
-
-        @Test
-        @DisplayName("is a no-op (does not throw) when the access token is unknown")
-        void unknownAccessToken_doesNotThrow() {
-            when(encodedJwt.getId()).thenReturn("unknown-jti");
-            when(accessTokenRepository.findByJti("unknown-jti")).thenReturn(Optional.empty());
-
-            assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
-            verify(accessTokenRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("is a no-op when the authenticated JWT has no jti")
-        void missingJti_doesNotLookupRepository() {
-            when(encodedJwt.getId()).thenReturn(null);
-
-            assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
-            verifyNoInteractions(accessTokenRepository, refreshTokenRepository);
-        }
-
-        @Test
-        @DisplayName("is a no-op (does not throw) when jwt is null")
-        void nullJwt_doesNotThrow() {
-            assertThatCode(() -> tokenService.logout(null, null)).doesNotThrowAnyException();
-            verifyNoInteractions(accessTokenRepository, refreshTokenRepository);
         }
     }
 }

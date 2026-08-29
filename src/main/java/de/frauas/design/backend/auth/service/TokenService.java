@@ -11,7 +11,6 @@ import de.frauas.design.backend.auth.exception.InvalidRefreshTokenException;
 import de.frauas.design.backend.auth.exception.InvalidRequestException;
 import de.frauas.design.backend.auth.exception.RefreshTokenUserInvalidException;
 import de.frauas.design.backend.auth.model.RefreshTokenEntity;
-import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
 import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.model.BaseUser;
@@ -19,7 +18,6 @@ import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,7 +60,6 @@ public class TokenService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final AccessTokenRepository accessTokenRepository;
     private final AccountLockoutService accountLockoutService;
     private final ScopeResolver scopeResolver;
     private final TokenIssuer tokenIssuer;
@@ -215,55 +212,5 @@ public class TokenService {
     private TokenResponseDto buildTokenResponse(String accessToken, String refreshToken, String scope) {
         return new TokenResponseDto(
                 accessToken, BEARER_TOKEN_TYPE, refreshToken, scope, tokenIssuer.getAccessTokenTtlSeconds());
-    }
-
-    // -------------------------------------------------------------------------
-    // Logout
-    // -------------------------------------------------------------------------
-
-    /**
-     * Revokes the caller's current access token (identified by the JWT's {@code jti}
-     * claim) and, if supplied, the given refresh token — so both stop working
-     * immediately instead of lingering until natural expiry.
-     *
-     * <p>Unlike the grant methods, an invalid/unknown/already-revoked token here is not
-     * treated as an error: logout is idempotent, so a missing {@code jti} or refresh
-     * token record is silently ignored.</p>
-     *
-     * @param jwt          the caller's current access token; may be {@code null} if the
-     *                     request reached this method unauthenticated (defensive only —
-     *                     the security filter chain normally rejects that earlier)
-     * @param refreshToken optional refresh token to revoke alongside the access token
-     */
-    @Transactional
-    public void logout(Jwt jwt, String refreshToken) {
-        if (jwt != null) {
-            String jti = jwt.getId();
-            if (jti == null || jti.isBlank()) {
-                log.debug("logout — authenticated JWT has no jti, skipping access-token revocation");
-            } else {
-                accessTokenRepository
-                        .findByJti(jti)
-                        .ifPresentOrElse(
-                                accessToken -> {
-                                    accessToken.revoke();
-                                    accessTokenRepository.save(accessToken);
-                                    log.info("logout — revoked access token jti={} userId={}", jti, jwt.getSubject());
-                                },
-                                () -> log.debug("logout — no access token record for jti={}", jti));
-            }
-        }
-
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            refreshTokenRepository
-                    .findActiveByTokenValue(refreshToken)
-                    .ifPresentOrElse(
-                            entity -> {
-                                entity.revoke();
-                                refreshTokenRepository.save(entity);
-                                log.info("logout — revoked refresh token userId={}", entity.getUserId());
-                            },
-                            () -> log.debug("logout — refresh token already revoked or unknown"));
-        }
     }
 }

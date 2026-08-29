@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -37,11 +38,11 @@ class PermissionControllerTest {
     private PermissionController permissionController;
 
     @Test
-    @DisplayName("returns 400 when request body is null")
-    void permissionsInfo_nullBody_returnsBadRequest() {
-        var response = permissionController.permissionsInfo(null, authJwt);
+    @DisplayName("throws IllegalArgumentException when request body is null")
+    void permissionsInfo_nullBody_throwsBadRequest() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> permissionController.permissionsInfo(null, authJwt));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         verifyNoInteractions(permissionService, jwtUserResolver);
     }
 

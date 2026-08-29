@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,6 +130,23 @@ class UserGroupServiceTest {
         }
 
         @Test
+        @DisplayName("rejects blank name when the resulting group would have no fallback description")
+        void updateUserGroup_blankNameAndDescription_throws() {
+            UserGroup g = new UserGroup();
+            g.setId(1);
+            g.setName("Old");
+            g.setDescription(null);
+
+            when(userGroupRepository.findById(1)).thenReturn(Optional.of(g));
+
+            UserGroupDto req = UserGroupDto.builder().name(" ").build();
+
+            assertThatThrownBy(() -> userGroupService.updateUserGroup(1, req))
+                    .isInstanceOf(IllegalArgumentException.class);
+            verify(userGroupRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("throws when group not found")
         void updateUserGroup_notFound_throws() {
             when(userGroupRepository.findById(99)).thenReturn(Optional.empty());
@@ -169,6 +187,31 @@ class UserGroupServiceTest {
             assertThat(staying.getGroups()).contains(group);
             assertThat(joining.getGroups()).contains(group);
             verify(userRepository).saveAll(List.of(leaving, joining));
+        }
+
+        @Test
+        @DisplayName("rejects invalid user IDs instead of silently ignoring them")
+        void updateUserGroup_invalidUserIds_throws() {
+            UserGroup group = new UserGroup();
+            group.setId(1);
+            group.setName("Devs");
+            group.setDescription("Developers");
+
+            User staying = makeUser(1);
+            staying.setGroups(new ArrayList<>(List.of(group)));
+            group.setUsers(new ArrayList<>(List.of(staying)));
+
+            when(userGroupRepository.findById(1)).thenReturn(Optional.of(group));
+            when(userRepository.findAllById(new LinkedHashSet<>(List.of(1, 99))))
+                    .thenReturn(List.of(staying));
+
+            UserGroupDto req = UserGroupDto.builder().userIds(List.of(1, 99)).build();
+
+            assertThatThrownBy(() -> userGroupService.updateUserGroup(1, req))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unknown regular user ids: [99]");
+            verify(userRepository, never()).saveAll(any());
+            verify(userGroupRepository, never()).save(any());
         }
 
         @Test

@@ -136,4 +136,32 @@ class UserGroupControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value("Updated via PATCH"));
     }
+
+    @Test
+    @Order(8)
+    @DisplayName("PATCH /user_group/{id} – invalid member IDs return 400")
+    void updateUserGroup_invalidMemberIds_returns400() throws Exception {
+        UserGroup group = userGroupRepository.findByName(GROUP_NAME).orElseThrow();
+        String body = objectMapper.writeValueAsString(Map.of("userIds", new int[] {999999}));
+
+        mockMvc.perform(patch("/user_group/" + group.getId())
+                        .with(adminJwt(999))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(9)
+    @DisplayName("PATCH /user_group/{id} – blank name and description return 400")
+    void updateUserGroup_blankNameAndDescription_returns400() throws Exception {
+        UserGroup group = userGroupRepository.findByName(GROUP_NAME).orElseThrow();
+        String body = objectMapper.writeValueAsString(Map.of("name", "", "description", ""));
+
+        mockMvc.perform(patch("/user_group/" + group.getId())
+                        .with(adminJwt(999))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
 }

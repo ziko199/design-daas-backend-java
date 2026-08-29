@@ -1,5 +1,6 @@
 package de.frauas.design.backend.desktop.service;
 
+import de.frauas.design.backend.desktop.dto.DesktopCreateRequest;
 import de.frauas.design.backend.desktop.dto.DesktopDto;
 import de.frauas.design.backend.desktop.dto.DesktopGroupDto;
 import de.frauas.design.backend.desktop.exception.DesktopGroupNameRequiredException;
@@ -76,6 +77,35 @@ class DesktopServiceTest {
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getName()).isEqualTo("D1");
         }
+
+        @Test
+        @DisplayName("createDesktop links created sub-groups into the returned DTO")
+        void createDesktop_withGroups_returnsGroupIds() {
+            DesktopCreateRequest.SubGroupRequest subGroupRequest = new DesktopCreateRequest.SubGroupRequest();
+            subGroupRequest.setName(" ");
+            subGroupRequest.setDescription("Sub Group");
+
+            DesktopCreateRequest request = new DesktopCreateRequest();
+            request.setName(" ");
+            request.setDescription("Desktop Description");
+            request.setGroups(List.of(subGroupRequest));
+
+            when(desktopRepository.save(any())).thenAnswer(invocation -> {
+                Desktop desktop = invocation.getArgument(0);
+                desktop.setId(10);
+                return desktop;
+            });
+            when(desktopGroupRepository.save(any())).thenAnswer(invocation -> {
+                DesktopGroup group = invocation.getArgument(0);
+                group.setId(20);
+                return group;
+            });
+
+            DesktopDto result = desktopService.createDesktop(request);
+
+            assertThat(result.getName()).isEqualTo("Desktop Description");
+            assertThat(result.getGroups()).containsExactly(20);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -126,6 +156,23 @@ class DesktopServiceTest {
 
             assertThatThrownBy(() -> desktopService.createDesktopGroup(req))
                     .isInstanceOf(DesktopGroupNameRequiredException.class);
+        }
+
+        @Test
+        @DisplayName("getAllDesktopGroups returns mapped DTOs")
+        void getAllDesktopGroups_returnsDtos() {
+            Desktop desktop = new Desktop();
+            desktop.setId(7);
+            DesktopGroup group = new DesktopGroup();
+            group.setId(1);
+            group.setName("DG1");
+            group.getDesktops().add(desktop);
+            when(desktopGroupRepository.findAll()).thenReturn(List.of(group));
+
+            List<DesktopGroupDto> result = desktopService.getAllDesktopGroups();
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getDesktopIds()).containsExactly(7);
         }
     }
 
@@ -182,15 +229,12 @@ class DesktopServiceTest {
             ug.setId(2);
             when(desktopGroupRepository.findById(1)).thenReturn(Optional.of(dg));
             when(userGroupRepository.findById(2)).thenReturn(Optional.of(ug));
-            when(userGroupRepository.save(any())).thenAnswer(inv -> {
-                // Simulate the bidirectional relationship JPA maintains on flush.
-                dg.getUserGroups().add(ug);
-                return ug;
-            });
+            when(userGroupRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             List<?> result = desktopService.addUserGroupToDesktopGroup(1, 2);
 
             assertThat(ug.getDesktopGroups()).contains(dg);
+            assertThat(dg.getUserGroups()).contains(ug);
             assertThat(result).hasSize(1);
         }
     }

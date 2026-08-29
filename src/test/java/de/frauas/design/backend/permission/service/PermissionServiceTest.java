@@ -28,12 +28,14 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for PermissionService covering all 4 resolution steps
- * plus the default-allow fallback.
+ * plus the default-deny fallback.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PermissionService")
@@ -80,15 +82,17 @@ class PermissionServiceTest {
     @DisplayName("uses 'unknown' as user name when user ID not found")
     void unknownUser_usesUnknownName() {
         when(userRepository.findById(999)).thenReturn(Optional.empty());
-        when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(999, FUNCTION))
-                .thenReturn(Optional.empty());
-        when(userRepository.findGroupIdsByUserId(999)).thenReturn(List.of());
-        when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(999, FUNCTION))
-                .thenReturn(Optional.empty());
 
         PermissionResultDto result = permissionService.checkPermission(999, FUNCTION);
 
         assertThat(result.getUser()).containsEntry("name", "unknown");
+        verify(endpointUserAccessRepo, never()).findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(any(), any());
+        verify(endpointUserGroupAccessRepo, never())
+                .findAllByUserGroupIdInAndEndpoint_FunctionNameOrderByIdAsc(any(), any());
+        verify(endpointGroupUserAccessRepo, never())
+                .findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(any(), any());
+        verify(endpointGroupUserGroupAccessRepo, never())
+                .findAllByUserGroupIdInAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(any(), any());
     }
 
     // -------------------------------------------------------------------------
@@ -173,13 +177,14 @@ class PermissionServiceTest {
         @DisplayName("returns ALLOW when direct allow rule found")
         void step1_directAllow_returnsAllow() {
             EndpointUserAccess rule = makeEndpointUserAccess(true);
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.of(rule));
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
             assertThat(result.getResult()).isEqualTo("allow");
             assertThat(result.getUser()).containsEntry("id", USER_ID);
+            verify(userRepository, never()).findGroupIdsByUserId(USER_ID);
             // Step 2–4 must never be consulted
             verifyNoInteractions(
                     endpointUserGroupAccessRepo, endpointGroupUserAccessRepo, endpointGroupUserGroupAccessRepo);
@@ -189,12 +194,28 @@ class PermissionServiceTest {
         @DisplayName("returns DENY when direct deny rule found")
         void step1_directDeny_returnsDeny() {
             EndpointUserAccess rule = makeEndpointUserAccess(false);
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.of(rule));
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
             assertThat(result.getResult()).isEqualTo("deny");
+        }
+
+        @Test
+        @DisplayName("returns DENY when conflicting direct rules exist")
+        void step1_conflictingDirectRules_returnsDeny() {
+            EndpointUserAccess allowRule = makeEndpointUserAccess(true);
+            EndpointUserAccess denyRule = makeEndpointUserAccess(false);
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of(allowRule, denyRule));
+
+            PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
+
+            assertThat(result.getResult()).isEqualTo("deny");
+            verify(userRepository, never()).findGroupIdsByUserId(USER_ID);
+            verifyNoInteractions(
+                    endpointUserGroupAccessRepo, endpointGroupUserAccessRepo, endpointGroupUserGroupAccessRepo);
         }
     }
 
@@ -208,8 +229,8 @@ class PermissionServiceTest {
 
         @BeforeEach
         void noDirectRule() {
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of());
             when(userRepository.findGroupIdsByUserId(USER_ID)).thenReturn(List.of(10, 20));
         }
 
@@ -217,9 +238,9 @@ class PermissionServiceTest {
         @DisplayName("returns ALLOW via group rule")
         void step2_groupAllow_returnsAllow() {
             EndpointUserGroupAccess rule = makeEndpointUserGroupAccess(true);
-            when(endpointUserGroupAccessRepo.findFirstByUserGroupIdInAndEndpoint_FunctionName(
+            when(endpointUserGroupAccessRepo.findAllByUserGroupIdInAndEndpoint_FunctionNameOrderByIdAsc(
                             List.of(10, 20), FUNCTION))
-                    .thenReturn(Optional.of(rule));
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
@@ -231,13 +252,28 @@ class PermissionServiceTest {
         @DisplayName("returns DENY via group rule")
         void step2_groupDeny_returnsDeny() {
             EndpointUserGroupAccess rule = makeEndpointUserGroupAccess(false);
-            when(endpointUserGroupAccessRepo.findFirstByUserGroupIdInAndEndpoint_FunctionName(
+            when(endpointUserGroupAccessRepo.findAllByUserGroupIdInAndEndpoint_FunctionNameOrderByIdAsc(
                             List.of(10, 20), FUNCTION))
-                    .thenReturn(Optional.of(rule));
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
             assertThat(result.getResult()).isEqualTo("deny");
+        }
+
+        @Test
+        @DisplayName("returns DENY when conflicting group rules exist")
+        void step2_conflictingGroupRules_returnsDeny() {
+            EndpointUserGroupAccess allowRule = makeEndpointUserGroupAccess(true);
+            EndpointUserGroupAccess denyRule = makeEndpointUserGroupAccess(false);
+            when(endpointUserGroupAccessRepo.findAllByUserGroupIdInAndEndpoint_FunctionNameOrderByIdAsc(
+                            List.of(10, 20), FUNCTION))
+                    .thenReturn(List.of(allowRule, denyRule));
+
+            PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
+
+            assertThat(result.getResult()).isEqualTo("deny");
+            verifyNoInteractions(endpointGroupUserAccessRepo, endpointGroupUserGroupAccessRepo);
         }
     }
 
@@ -247,8 +283,8 @@ class PermissionServiceTest {
 
         @BeforeEach
         void noStep1or2() {
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of());
             when(userRepository.findGroupIdsByUserId(USER_ID)).thenReturn(List.of());
         }
 
@@ -256,9 +292,9 @@ class PermissionServiceTest {
         @DisplayName("returns ALLOW when function is in user's endpoint group (allow rule)")
         void step3_endpointGroupAllow_returnsAllow() {
             EndpointGroupUserAccess rule = makeEndpointGroupUserAccess(FUNCTION, true);
-            when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(
+            when(endpointGroupUserAccessRepo.findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
                             USER_ID, FUNCTION))
-                    .thenReturn(Optional.of(rule));
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
@@ -270,9 +306,9 @@ class PermissionServiceTest {
         @DisplayName("returns DENY when function is in user's endpoint group (deny rule)")
         void step3_endpointGroupDeny_returnsDeny() {
             EndpointGroupUserAccess rule = makeEndpointGroupUserAccess(FUNCTION, false);
-            when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(
+            when(endpointGroupUserAccessRepo.findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
                             USER_ID, FUNCTION))
-                    .thenReturn(Optional.of(rule));
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
@@ -282,9 +318,9 @@ class PermissionServiceTest {
         @Test
         @DisplayName("falls through to default when function NOT in any endpoint group")
         void step3_functionNotInGroup_fallsThrough() {
-            when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(
+            when(endpointGroupUserAccessRepo.findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
                             USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
             // groupIds is empty (from @BeforeEach) so step 4 is not reached at all
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
@@ -300,22 +336,24 @@ class PermissionServiceTest {
 
         @BeforeEach
         void noStep1to3() {
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of());
             when(userRepository.findGroupIdsByUserId(USER_ID)).thenReturn(List.of(10));
-            when(endpointUserGroupAccessRepo.findFirstByUserGroupIdInAndEndpoint_FunctionName(any(), any()))
-                    .thenReturn(Optional.empty());
-            when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(any(), any()))
-                    .thenReturn(Optional.empty());
+            when(endpointUserGroupAccessRepo.findAllByUserGroupIdInAndEndpoint_FunctionNameOrderByIdAsc(any(), any()))
+                    .thenReturn(List.of());
+            when(endpointGroupUserAccessRepo.findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
+                            any(), any()))
+                    .thenReturn(List.of());
         }
 
         @Test
         @DisplayName("returns ALLOW via user-group endpoint-group rule")
         void step4_groupEndpointGroupAllow_returnsAllow() {
             EndpointGroupUserGroupAccess rule = makeEndpointGroupUserGroupAccess(FUNCTION, true);
-            when(endpointGroupUserGroupAccessRepo.findFirstByUserGroupIdInAndEndpointGroup_Endpoints_FunctionName(
-                            List.of(10), FUNCTION))
-                    .thenReturn(Optional.of(rule));
+            when(endpointGroupUserGroupAccessRepo
+                            .findAllByUserGroupIdInAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
+                                    List.of(10), FUNCTION))
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
@@ -326,9 +364,10 @@ class PermissionServiceTest {
         @DisplayName("returns DENY via user-group endpoint-group rule")
         void step4_groupEndpointGroupDeny_returnsDeny() {
             EndpointGroupUserGroupAccess rule = makeEndpointGroupUserGroupAccess(FUNCTION, false);
-            when(endpointGroupUserGroupAccessRepo.findFirstByUserGroupIdInAndEndpointGroup_Endpoints_FunctionName(
-                            List.of(10), FUNCTION))
-                    .thenReturn(Optional.of(rule));
+            when(endpointGroupUserGroupAccessRepo
+                            .findAllByUserGroupIdInAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
+                                    List.of(10), FUNCTION))
+                    .thenReturn(List.of(rule));
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 
@@ -343,12 +382,12 @@ class PermissionServiceTest {
         @Test
         @DisplayName("returns DENY when no rule matches (matches PHP PermissionCalculationService)")
         void noRuleMatches_returnsDeny() {
-            when(endpointUserAccessRepo.findByUserIdAndEndpoint_FunctionName(USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+            when(endpointUserAccessRepo.findAllByUserIdAndEndpoint_FunctionNameOrderByIdAsc(USER_ID, FUNCTION))
+                    .thenReturn(List.of());
             when(userRepository.findGroupIdsByUserId(USER_ID)).thenReturn(List.of());
-            when(endpointGroupUserAccessRepo.findFirstByUserIdAndEndpointGroup_Endpoints_FunctionName(
+            when(endpointGroupUserAccessRepo.findAllByUserIdAndEndpointGroup_Endpoints_FunctionNameOrderByIdAsc(
                             USER_ID, FUNCTION))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             PermissionResultDto result = permissionService.checkPermission(USER_ID, FUNCTION);
 

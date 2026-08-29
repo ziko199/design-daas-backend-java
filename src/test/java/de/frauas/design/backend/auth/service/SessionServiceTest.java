@@ -156,4 +156,23 @@ class SessionServiceTest {
                         assertThat(((MissingTokenException) ex).getStatus()).isEqualTo(401));
         verifyNoInteractions(accessTokenRepository, userRepository);
     }
+
+    @Test
+    @DisplayName(
+            "throws UserNotFoundException (401) when the subject claim is blank instead of bubbling a parsing failure")
+    void blankSubject_throwsUserNotFound() {
+        Jwt jwt = Jwt.withTokenValue("token-value")
+                .header("alg", "RS256")
+                .jti("valid-jti")
+                .subject(" ")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        AccessTokenEntity entity = new AccessTokenEntity();
+        entity.setJti("valid-jti");
+        when(accessTokenRepository.findByJti("valid-jti")).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> sessionService.getSession(jwt)).isInstanceOf(UserNotFoundException.class);
+        verifyNoInteractions(userRepository);
+    }
 }

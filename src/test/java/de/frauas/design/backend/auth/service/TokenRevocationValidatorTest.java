@@ -145,6 +145,27 @@ class TokenRevocationValidatorTest {
     }
 
     @Test
+    @DisplayName("fails when the subject claim is blank")
+    void blankSubject_fails() {
+        AccessTokenEntity entity = new AccessTokenEntity();
+        entity.setJti("valid-jti");
+        when(accessTokenRepository.findByJti("valid-jti")).thenReturn(Optional.of(entity));
+
+        Jwt jwt = Jwt.withTokenValue("token-value")
+                .header("alg", "RS256")
+                .jti("valid-jti")
+                .subject(" ")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+
+        OAuth2TokenValidatorResult result = validator.validate(jwt);
+
+        assertThat(result.hasErrors()).isTrue();
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
     @DisplayName("succeeds for a non-revoked token belonging to an enabled user")
     void validToken_succeeds() {
         AccessTokenEntity entity = new AccessTokenEntity();

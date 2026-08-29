@@ -89,6 +89,20 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(4)
+    @DisplayName("POST /user – unknown user group IDs return 400")
+    void createUser_unknownGroups_returns400() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of(
+                "name", "Grouped User",
+                "email", "unknown-group@example.com",
+                "password", "Password1",
+                "groups", new int[] {999999}));
+
+        mockMvc.perform(post("/user").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(5)
     @DisplayName("POST /user – blank name returns 400")
     void createUser_blankName_returns400() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
@@ -105,7 +119,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(5)
+    @Order(6)
     @DisplayName("POST /user/validate_email – wrong code returns 400")
     void validateEmail_wrongCode_returns400() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of("email", TEST_EMAIL, "registration_code", "WRONGCOD"));
@@ -117,7 +131,19 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(6)
+    @Order(7)
+    @DisplayName("POST /user/validate_email – blank code is rejected by bean validation")
+    void validateEmail_blankCode_returns400() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("email", TEST_EMAIL, "registration_code", ""));
+
+        mockMvc.perform(post("/user/validate_email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(8)
     @DisplayName("POST /user/validate_email – correct code enables user and returns 200")
     void validateEmail_correctCode_returns200() throws Exception {
         User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
@@ -141,7 +167,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(7)
+    @Order(9)
     @DisplayName("GET /users – returns 200 with admin JWT")
     void getAllUsers_adminJwt_returns200() throws Exception {
         mockMvc.perform(get("/users").with(adminJwt(999)))
@@ -150,14 +176,14 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(8)
+    @Order(10)
     @DisplayName("GET /users – returns 403 with user JWT")
     void getAllUsers_userJwt_returns403() throws Exception {
         mockMvc.perform(get("/users").with(userJwt(1))).andExpect(status().isForbidden());
     }
 
     @Test
-    @Order(9)
+    @Order(11)
     @DisplayName("GET /users – returns 401 with no JWT")
     void getAllUsers_noJwt_returns401() throws Exception {
         mockMvc.perform(get("/users")).andExpect(status().isUnauthorized());
@@ -168,7 +194,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(10)
+    @Order(12)
     @DisplayName("PATCH /user/{id} – updates name")
     void updateUser_updatesName() throws Exception {
         User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
@@ -187,7 +213,21 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(11)
+    @Order(13)
+    @DisplayName("PATCH /user/{id} – unknown group IDs return 400")
+    void updateUser_unknownGroups_returns400() throws Exception {
+        User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();
+        String body = objectMapper.writeValueAsString(Map.of("groups", new int[] {999999}));
+
+        mockMvc.perform(patch("/user/" + u.getId())
+                        .with(adminJwt(999))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(14)
     @DisplayName("POST /user/{id}/disable then /enable toggles enabled state")
     void enableDisable_togglesState() throws Exception {
         User u = (User) userRepository.findByEmail(TEST_EMAIL).orElseThrow();

@@ -29,7 +29,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -122,6 +124,10 @@ class TokenServiceTest {
                     .isInstanceOf(InvalidRequestException.class)
                     .extracting(ex -> ((InvalidRequestException) ex).getStatus())
                     .isEqualTo(400);
+            assertThatThrownBy(() -> tokenService.passwordGrant("   ", PASSWORD, ""))
+                    .isInstanceOf(InvalidRequestException.class);
+            assertThatThrownBy(() -> tokenService.passwordGrant(EMAIL, "   ", ""))
+                    .isInstanceOf(InvalidRequestException.class);
             verifyNoInteractions(userRepository);
         }
 
@@ -290,6 +296,7 @@ class TokenServiceTest {
                     .isInstanceOf(InvalidRequestException.class)
                     .extracting(ex -> ((InvalidRequestException) ex).getStatus())
                     .isEqualTo(400);
+            assertThatThrownBy(() -> tokenService.refreshGrant("   ")).isInstanceOf(InvalidRequestException.class);
             verifyNoInteractions(refreshTokenRepository);
         }
 
@@ -395,6 +402,14 @@ class TokenServiceTest {
 
             assertThat(result.refreshToken()).isNotEqualTo("valid-token");
         }
+
+        @Test
+        @DisplayName("is transactional so refresh-token locking also works through controller dispatch")
+        void grantToken_isTransactional() throws NoSuchMethodException {
+            Method method = TokenService.class.getMethod("grantToken", GrantRequest.class);
+
+            assertThat(method.isAnnotationPresent(Transactional.class)).isTrue();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -447,6 +462,15 @@ class TokenServiceTest {
 
             assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
             verify(accessTokenRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("is a no-op when the authenticated JWT has no jti")
+        void missingJti_doesNotLookupRepository() {
+            when(encodedJwt.getId()).thenReturn(null);
+
+            assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
+            verifyNoInteractions(accessTokenRepository, refreshTokenRepository);
         }
 
         @Test

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -16,6 +17,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -80,6 +82,23 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.refresh_token").isNotEmpty())
                 .andExpect(jsonPath("$.token_type").value("Bearer"))
                 .andExpect(jsonPath("$.expires_in").isNumber());
+    }
+
+    @Test
+    @DisplayName("password grant – JSON requests are accepted as advertised")
+    void passwordGrant_jsonRequest_returns200WithTokens() throws Exception {
+        mockMvc.perform(post("/oauth2/user/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "grant_type": "password",
+                              "username": "%s",
+                              "password": "%s"
+                            }
+                            """.formatted(EMAIL, PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.access_token").isNotEmpty())
+                .andExpect(jsonPath("$.refresh_token").isNotEmpty());
     }
 
     @Test
@@ -243,6 +262,73 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
                         .param("grant_type", "refresh_token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("invalid_request"));
+    }
+
+    @Test
+    @DisplayName("logout revokes both the current access token and the supplied refresh token")
+    void logout_revokesAccessAndRefreshTokens() throws Exception {
+        String tokenResponse = mockMvc.perform(post("/oauth2/user/token")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("grant_type", "password")
+                        .param("username", EMAIL)
+                        .param("password", PASSWORD))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String accessToken = extractJsonField(tokenResponse, "access_token");
+        String refreshToken = extractJsonField(tokenResponse, "refresh_token");
+
+        mockMvc.perform(post("/oauth2/user/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("refresh_token", refreshToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/users/access/1").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/oauth2/user/token")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("grant_type", "refresh_token")
+                        .param("refresh_token", refreshToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("invalid_grant"));
+    }
+
+    @Test
+    @DisplayName("logout also accepts the advertised JSON request body")
+    void logout_jsonRequest_revokesRefreshToken() throws Exception {
+        String tokenResponse = mockMvc.perform(post("/oauth2/user/token")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("grant_type", "password")
+                        .param("username", EMAIL)
+                        .param("password", PASSWORD))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String accessToken = extractJsonField(tokenResponse, "access_token");
+        String refreshToken = extractJsonField(tokenResponse, "refresh_token");
+
+        mockMvc.perform(post("/oauth2/user/logout")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "refresh_token": "%s"
+                            }
+                            """.formatted(refreshToken)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/oauth2/user/token")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("grant_type", "refresh_token")
+                        .param("refresh_token", refreshToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("invalid_grant"));
     }
 
     // -------------------------------------------------------------------------

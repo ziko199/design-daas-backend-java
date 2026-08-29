@@ -41,4 +41,14 @@ class GrantRequestTest {
                 .extracting(ex -> ((UnsupportedGrantTypeException) ex).getStatus())
                 .isEqualTo(400);
     }
+
+    @Test
+    @DisplayName(
+            "throws UnsupportedGrantTypeException(400) for null or blank grant_type instead of NullPointerException")
+    void nullOrBlankGrantType_throwsUnsupportedGrantType() {
+        assertThatThrownBy(() -> GrantRequest.of(null, null, null, null, null))
+                .isInstanceOf(UnsupportedGrantTypeException.class);
+        assertThatThrownBy(() -> GrantRequest.of("   ", null, null, null, null))
+                .isInstanceOf(UnsupportedGrantTypeException.class);
+    }
 }

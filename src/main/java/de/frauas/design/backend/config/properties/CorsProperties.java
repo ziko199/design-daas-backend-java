@@ -1,4 +1,4 @@
-package de.frauas.design.backend.config;
+package de.frauas.design.backend.config.properties;
 
 import lombok.Getter;
 import lombok.Setter;

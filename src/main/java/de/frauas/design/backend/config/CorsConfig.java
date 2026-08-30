@@ -1,5 +1,6 @@
 package de.frauas.design.backend.config;
 
+import de.frauas.design.backend.config.properties.CorsProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

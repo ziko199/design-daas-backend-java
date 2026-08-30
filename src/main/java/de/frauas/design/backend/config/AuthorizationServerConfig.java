@@ -7,6 +7,7 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.service.TokenRevocationValidator;
+import de.frauas.design.backend.config.properties.OAuth2Properties;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

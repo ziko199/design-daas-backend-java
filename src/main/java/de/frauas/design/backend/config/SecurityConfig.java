@@ -1,5 +1,6 @@
 package de.frauas.design.backend.config;
 
+import de.frauas.design.backend.config.properties.SecurityProperties;
 import de.frauas.design.backend.shared.security.Authorities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

@@ -1,4 +1,4 @@
-package de.frauas.design.backend.config;
+package de.frauas.design.backend.config.properties;
 
 import jakarta.validation.constraints.Min;
 import lombok.Getter;

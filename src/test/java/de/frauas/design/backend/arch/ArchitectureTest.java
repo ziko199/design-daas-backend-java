@@ -44,14 +44,16 @@ public class ArchitectureTest {
             .definedBy("de.frauas.design.backend..dto..")
             .layer("Shared")
             .definedBy("de.frauas.design.backend.shared..")
+            .layer("Bootstrap")
+            .definedBy("de.frauas.design.backend.bootstrap..")
             .whereLayer("Controllers")
             .mayNotBeAccessedByAnyLayer()
             .whereLayer("Services")
-            .mayOnlyBeAccessedByLayers("Controllers", "Config", "Services")
+            .mayOnlyBeAccessedByLayers("Controllers", "Config", "Services", "Bootstrap")
             .whereLayer("Repositories")
-            .mayOnlyBeAccessedByLayers("Services", "Config", "Controllers")
+            .mayOnlyBeAccessedByLayers("Services", "Config", "Controllers", "Bootstrap")
             .whereLayer("Models")
-            .mayOnlyBeAccessedByLayers("Controllers", "Services", "Repositories", "Config", "DTOs");
+            .mayOnlyBeAccessedByLayers("Controllers", "Services", "Repositories", "Config", "DTOs", "Bootstrap");
 
     // -------------------------------------------------------------------------
     // Naming Conventions

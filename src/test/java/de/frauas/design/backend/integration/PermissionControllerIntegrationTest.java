@@ -19,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
@@ -60,7 +59,6 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
         // Create test user
         userRepository.findByEmail("perm.test@example.com").ifPresent(userRepository::delete);
         User u = new User();
-        u.setGuid(UUID.randomUUID().toString());
         u.setName("Perm Tester");
         u.setEmail("perm.test@example.com");
         u.setPassword(passwordEncoder.encode("Pass1234!"));

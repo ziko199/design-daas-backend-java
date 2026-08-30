@@ -36,7 +36,6 @@ class AccountLockoutServiceTest {
     private User user() {
         User user = new User();
         user.setId(1);
-        user.setGuid(UUID.randomUUID().toString());
         user.setName("Test User");
         user.setEmail("user@example.com");
         user.setPassword("hash");

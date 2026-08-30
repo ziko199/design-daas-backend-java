@@ -55,7 +55,6 @@ class TokenRevocationValidatorTest {
     private User enabledUser(Integer id) {
         User u = new User();
         u.setId(id);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail("u" + id + "@example.com");
         u.setName("User " + id);
         u.setPassword("hash");

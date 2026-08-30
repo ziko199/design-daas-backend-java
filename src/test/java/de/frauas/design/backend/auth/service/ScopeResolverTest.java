@@ -50,14 +50,12 @@ class ScopeResolverTest {
 
     private User user() {
         User user = new User();
-        user.setGuid(UUID.randomUUID().toString());
         user.setEmail("user@example.com");
         return user;
     }
 
     private Admin admin() {
         Admin admin = new Admin();
-        admin.setGuid(UUID.randomUUID().toString());
         admin.setEmail("admin@example.com");
         return admin;
     }

@@ -46,7 +46,6 @@ class SessionServiceTest {
     private User user(Integer id, boolean enabled) {
         User u = new User();
         u.setId(id);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail("user" + id + "@example.com");
         u.setName("User " + id);
         u.setPassword("hash");

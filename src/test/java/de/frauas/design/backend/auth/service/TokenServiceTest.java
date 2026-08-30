@@ -94,7 +94,6 @@ class TokenServiceTest {
     private User user() {
         User u = new User();
         u.setId(1);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail(EMAIL);
         u.setName("Test User");
         u.setPassword(HASH);
@@ -216,7 +215,6 @@ class TokenServiceTest {
         void adminScope_allowedForAdminUser() {
             Admin admin = new Admin();
             admin.setId(2);
-            admin.setGuid(UUID.randomUUID().toString());
             admin.setEmail("admin@example.com");
             admin.setName("Admin User");
             admin.setPassword(HASH);

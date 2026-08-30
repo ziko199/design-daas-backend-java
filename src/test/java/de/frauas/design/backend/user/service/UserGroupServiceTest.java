@@ -47,7 +47,6 @@ class UserGroupServiceTest {
     private User makeUser(Integer id) {
         User u = new User();
         u.setId(id);
-        u.setGuid("guid-" + id);
         u.setName("User " + id);
         u.setEmail("user" + id + "@e.com");
         u.setPassword("encoded");

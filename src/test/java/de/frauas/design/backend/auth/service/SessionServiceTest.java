@@ -19,7 +19,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

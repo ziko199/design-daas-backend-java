@@ -69,7 +69,6 @@ class UserServiceTest {
     private User makeUser(Integer id, String email, boolean enabled) {
         User u = new User();
         u.setId(id);
-        u.setGuid("guid-" + id);
         u.setName("Test User");
         u.setEmail(email);
         u.setPassword("encoded");
@@ -82,7 +81,6 @@ class UserServiceTest {
     private Admin makeAdmin(Integer id, String email) {
         Admin a = new Admin();
         a.setId(id);
-        a.setGuid("guid-admin-" + id);
         a.setName("Admin User");
         a.setEmail(email);
         a.setPassword("encoded");

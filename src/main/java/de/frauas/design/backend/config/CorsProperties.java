@@ -3,23 +3,26 @@ package de.frauas.design.backend.config;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
  * Configuration properties for cross-origin request handling.
  *
- * <p>{@code allowedOrigins} must be an explicit allow-list — never a wildcard — because
- * {@link CorsConfig} enables {@code allowCredentials}. Combining a wildcard origin with
- * credentials would let any origin make authenticated cross-site requests.</p>
+ * <p>Origins must be explicitly listed rather than using a wildcard.
+ * This is especially important when credentialed cross-origin requests
+ * are enabled.</p>
  */
-@Component
-@ConfigurationProperties(prefix = "app.cors")
 @Getter
 @Setter
+@ConfigurationProperties(prefix = "app.cors")
 public class CorsProperties {
 
-    /** Exact origins (scheme + host + port) allowed to make credentialed cross-origin requests. */
+    /**
+     * Exact origins allowed to access the API.
+     *
+     * <p>Each origin must contain scheme, host, and optional port,
+     * for example {@code http://localhost:3000}.</p>
+     */
     private List<String> allowedOrigins = List.of("http://localhost:3000");
 }

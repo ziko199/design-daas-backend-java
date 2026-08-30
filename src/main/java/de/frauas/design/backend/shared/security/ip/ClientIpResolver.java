@@ -1,4 +1,4 @@
-package de.frauas.design.backend.shared.security;
+package de.frauas.design.backend.shared.security.ip;
 
 import de.frauas.design.backend.config.properties.RateLimitingProperties;
 import jakarta.servlet.http.HttpServletRequest;

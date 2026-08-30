@@ -1,4 +1,4 @@
-package de.frauas.design.backend.shared.security;
+package de.frauas.design.backend.shared.security.ratelimit;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -24,15 +24,11 @@ final class TokenBucket {
 
     TokenBucket(int requestsPerMinute, long refillPeriodMillis) {
         if (requestsPerMinute <= 0) {
-            throw new IllegalArgumentException(
-                    "requestsPerMinute must be greater than zero"
-            );
+            throw new IllegalArgumentException("requestsPerMinute must be greater than zero");
         }
 
         if (refillPeriodMillis <= 0) {
-            throw new IllegalArgumentException(
-                    "refillPeriodMillis must be greater than zero"
-            );
+            throw new IllegalArgumentException("refillPeriodMillis must be greater than zero");
         }
 
         this.capacity = requestsPerMinute;
@@ -81,5 +77,3 @@ final class TokenBucket {
         }
     }
 }
-
-

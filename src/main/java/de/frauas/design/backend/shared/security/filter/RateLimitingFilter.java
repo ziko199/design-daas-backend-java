@@ -1,7 +1,8 @@
-package de.frauas.design.backend.shared.security;
-// package de.frauas.design.backend.security.filter;
+package de.frauas.design.backend.shared.security.filter;
 
 import de.frauas.design.backend.config.properties.RateLimitingProperties;
+import de.frauas.design.backend.shared.security.ip.ClientIpResolver;
+import de.frauas.design.backend.shared.security.ratelimit.RateLimiter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

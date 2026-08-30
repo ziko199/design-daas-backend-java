@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Core business logic for admin account management.
@@ -55,7 +54,6 @@ public class AdminService {
         accountValidator.validatePassword(request.getPassword());
         accountValidator.assertEmailAvailable(request.getEmail(), null);
         Admin admin = new Admin();
-        admin.setGuid(UUID.randomUUID().toString());
         admin.setName(request.getName());
         admin.setEmail(request.getEmail());
         admin.setPassword(passwordEncoder.encode(request.getPassword()));

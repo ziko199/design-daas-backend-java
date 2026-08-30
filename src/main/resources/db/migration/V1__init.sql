@@ -8,7 +8,6 @@ CREATE TABLE users
 (
     id                        INT AUTO_INCREMENT PRIMARY KEY,
     role                      VARCHAR(16)  NOT NULL,
-    guid                      VARCHAR(255) NOT NULL,
     name                      VARCHAR(255) NOT NULL,
     email                     VARCHAR(255) NOT NULL UNIQUE,
     password                  VARCHAR(255) NOT NULL,

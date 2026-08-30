@@ -39,9 +39,6 @@ public abstract class BaseUser {
     private Integer id;
 
     @Column(nullable = false)
-    private String guid;
-
-    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false, unique = true)

@@ -23,7 +23,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -65,7 +64,6 @@ public class UserService {
         accountValidator.validatePassword(request.getPassword());
         accountValidator.assertEmailAvailable(request.getEmail(), null);
         User user = new User();
-        user.setGuid(UUID.randomUUID().toString());
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));

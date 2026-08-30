@@ -55,11 +55,14 @@ app:
     register-requests-per-minute: ${RATE_LIMIT_REGISTER:5}
     validate-email-requests-per-minute: ${RATE_LIMIT_VALIDATE_EMAIL:10}
     trusted-proxy-ranges: ${RATE_LIMIT_TRUSTED_PROXIES:127.0.0.1/32,::1/128}
+  security:
+    swagger-public: false
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
+    enabled: true
     path: /swagger-ui.html
 
 logging:

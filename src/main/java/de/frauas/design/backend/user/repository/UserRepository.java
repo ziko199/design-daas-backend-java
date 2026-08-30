@@ -37,4 +37,6 @@ public interface UserRepository extends JpaRepository<BaseUser, Integer> {
     /** Used by PermissionService to fetch the user's group IDs. */
     @Query("SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId")
     List<Integer> findGroupIdsByUserId(@Param("userId") Integer userId);
+
+    boolean existsByEmail(String email);
 }

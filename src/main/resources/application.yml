@@ -37,6 +37,10 @@ spring:
             enable: false
 
 app:
+  admin-initializer:
+    enabled: true
+    email: ${ADMIN_EMAIL:admin@design.local}
+    password: ${ADMIN_PASSWORD:Admin123!}
   oauth2:
     keys-dir: ${OAUTH_KEYS_DIR:./keys}
     issuer: ${OAUTH_ISSUER:http://localhost:8080}

@@ -8,8 +8,8 @@ import com.nimbusds.jose.proc.SecurityContext;
 import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.service.TokenRevocationValidator;
 import de.frauas.design.backend.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -24,7 +24,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -35,45 +34,30 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Provides the RSA JWK source, JwtEncoder and JwtDecoder beans used by
- * {@link de.frauas.design.backend.auth.service.TokenService} (issuance) and
- * {@link de.frauas.design.backend.config.SecurityConfig} (resource-server validation).
+ * Configures RSA keys and JWT encoding/decoding for the application's OAuth2 infrastructure.
  *
- * <p>Spring Boot 4.x / Spring Security 7.x removed
- * {@code OAuth2AuthorizationServerConfiguration.jwtDecoder()}.
- * The equivalent is now {@code NimbusJwtDecoder.withJwkSource(jwkSource).build()}
- * from the {@code spring-security-oauth2-jose} module (bundled with
- * {@code spring-boot-starter-oauth2-resource-server}).</p>
+ * <p>The RSA key pair is persisted locally so that issued tokens remain verifiable
+ * after application restarts.</p>
  *
- * <p>The decoder's validator chain combines Spring's default checks (expiry, not-before)
- * with an issuer check (matching {@code app.oauth2.issuer}, the value {@code TokenIssuer}
- * signs into every access token) and {@link TokenRevocationValidator}, so that every
- * authenticated request — not just {@code GET /oauth2/user/session} — rejects revoked
- * access tokens and tokens belonging to disabled/deleted users.</p>
+ * <p>Incoming JWTs are validated for standard claims, issuer, and application-level
+ * token revocation.</p>
  */
 @Configuration
+@RequiredArgsConstructor
 @Slf4j
 public class AuthorizationServerConfig {
 
-    @Value("${app.oauth2.keys-dir:./keys}")
-    private String keysDir;
+    private static final String RSA_KEY_FILE = "rsa-jwk.json";
+    private static final int RSA_KEY_SIZE = 2048;
 
-    @Value("${app.oauth2.issuer:http://localhost:8080}")
-    private String issuer;
+    private final OAuth2Properties oauth2Properties;
 
-    /** Sets file permissions to owner-read/write only (600). No-op on non-POSIX systems. */
-    private static void restrictFilePermissions(Path path) {
-        try {
-            Files.setPosixFilePermissions(
-                    path, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
-        } catch (UnsupportedOperationException ignored) {
-            // Non-POSIX filesystem (e.g. Windows dev environment) — skip silently
-        } catch (Exception e) {
-            // Log but don't fail startup
-            log.warn("Could not set RSA key file permissions: {}", e.getMessage());
-        }
-    }
-
+    /**
+     * Creates the JWK source used for signing and validating JWTs.
+     *
+     * @return RSA JWK source
+     * @throws Exception if the key cannot be loaded or generated
+     */
     @Bean
     public JWKSource<SecurityContext> jwkSource() throws Exception {
         RSAKey rsaKey = loadOrGenerateRsaKey();
@@ -81,52 +65,94 @@ public class AuthorizationServerConfig {
     }
 
     /**
-     * Spring Security 7.x: use {@code NimbusJwtDecoder.withJwkSource()} instead of
-     * the removed {@code OAuth2AuthorizationServerConfiguration.jwtDecoder()}.
+     * Creates the JWT encoder used for issuing access tokens.
+     *
+     * @param jwkSource configured RSA JWK source
+     * @return JWT encoder
+     */
+    @Bean
+    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
+        return new NimbusJwtEncoder(jwkSource);
+    }
+
+    /**
+     * Creates the JWT decoder used by Spring Security to authenticate requests.
+     *
+     * <p>The validator chain performs standard JWT validation, issuer validation,
+     * and application-level token revocation checks.</p>
+     *
+     * @param jwkSource RSA JWK source
+     * @param accessTokenRepository repository containing issued/revoked tokens
+     * @param userRepository repository used to verify user state
+     * @return configured JWT decoder
      */
     @Bean
     public JwtDecoder jwtDecoder(
             JWKSource<SecurityContext> jwkSource,
             AccessTokenRepository accessTokenRepository,
             UserRepository userRepository) {
+
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(jwkSource).build();
+
+        OAuth2TokenValidator<Jwt> issuerValidator =
+                new JwtClaimValidator<>("iss", oauth2Properties.getIssuer()::equals);
+
         OAuth2TokenValidator<Jwt> revocationValidator =
                 new TokenRevocationValidator(accessTokenRepository, userRepository);
-        OAuth2TokenValidator<Jwt> issuerValidator = new JwtClaimValidator<>("iss", issuer::equals);
+
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 List.of(JwtValidators.createDefault(), issuerValidator, revocationValidator)));
+
         return decoder;
     }
 
-    // -------------------------------------------------------------------------
-    // RSA key persistence
-    // -------------------------------------------------------------------------
-
-    @Bean
-    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
-        return new NimbusJwtEncoder(jwkSource);
-    }
-
     private RSAKey loadOrGenerateRsaKey() throws Exception {
-        Path keysPath = Paths.get(keysDir);
-        Files.createDirectories(keysPath);
-        Path jwkPath = keysPath.resolve("rsa-jwk.json");
+        Path keyDirectory = Path.of(oauth2Properties.getKeysDir());
+        Files.createDirectories(keyDirectory);
 
-        if (Files.exists(jwkPath)) {
-            return RSAKey.parse(Files.readString(jwkPath));
+        Path keyFile = keyDirectory.resolve(RSA_KEY_FILE);
+
+        if (Files.exists(keyFile)) {
+            return RSAKey.parse(Files.readString(keyFile));
         }
 
-        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
-        gen.initialize(2048);
-        KeyPair kp = gen.generateKeyPair();
+        RSAKey rsaKey = generateRsaKey();
 
-        RSAKey rsaKey = new RSAKey.Builder((RSAPublicKey) kp.getPublic())
-                .privateKey((RSAPrivateKey) kp.getPrivate())
+        Files.writeString(keyFile, rsaKey.toJSONString());
+        restrictFilePermissions(keyFile);
+
+        log.info("Generated new RSA signing key at {}", keyFile.toAbsolutePath());
+
+        return rsaKey;
+    }
+
+    private RSAKey generateRsaKey() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(RSA_KEY_SIZE);
+
+        KeyPair keyPair = generator.generateKeyPair();
+
+        return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+                .privateKey((RSAPrivateKey) keyPair.getPrivate())
                 .keyID(UUID.randomUUID().toString())
                 .build();
+    }
 
-        Files.writeString(jwkPath, rsaKey.toJSONString());
-        restrictFilePermissions(jwkPath);
-        return rsaKey;
+    /**
+     * Restricts the persisted private-key file to owner read/write permissions
+     * on POSIX-compatible filesystems.
+     *
+     * <p>Windows and other non-POSIX filesystems do not support this permission
+     * model and are therefore ignored.</p>
+     */
+    private void restrictFilePermissions(Path path) {
+        try {
+            Files.setPosixFilePermissions(
+                    path, Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+        } catch (UnsupportedOperationException ignored) {
+            // Filesystem does not support POSIX permissions.
+        } catch (Exception exception) {
+            log.warn("Unable to restrict permissions for RSA key file: {}", path.toAbsolutePath(), exception);
+        }
     }
 }

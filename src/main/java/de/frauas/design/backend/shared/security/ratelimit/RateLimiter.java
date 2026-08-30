@@ -1,6 +1,5 @@
 package de.frauas.design.backend.shared.security.ratelimit;
 
-import de.frauas.design.backend.shared.security.TokenBucket;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

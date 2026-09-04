@@ -29,13 +29,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -85,7 +85,6 @@ class TokenServiceTest {
                 userRepository,
                 passwordEncoder,
                 refreshTokenRepository,
-                accessTokenRepository,
                 accountLockoutService,
                 scopeResolver,
                 tokenIssuer);
@@ -94,7 +93,6 @@ class TokenServiceTest {
     private User user() {
         User u = new User();
         u.setId(1);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail(EMAIL);
         u.setName("Test User");
         u.setPassword(HASH);
@@ -122,6 +120,10 @@ class TokenServiceTest {
                     .isInstanceOf(InvalidRequestException.class)
                     .extracting(ex -> ((InvalidRequestException) ex).getStatus())
                     .isEqualTo(400);
+            assertThatThrownBy(() -> tokenService.passwordGrant("   ", PASSWORD, ""))
+                    .isInstanceOf(InvalidRequestException.class);
+            assertThatThrownBy(() -> tokenService.passwordGrant(EMAIL, "   ", ""))
+                    .isInstanceOf(InvalidRequestException.class);
             verifyNoInteractions(userRepository);
         }
 
@@ -212,7 +214,6 @@ class TokenServiceTest {
         void adminScope_allowedForAdminUser() {
             Admin admin = new Admin();
             admin.setId(2);
-            admin.setGuid(UUID.randomUUID().toString());
             admin.setEmail("admin@example.com");
             admin.setName("Admin User");
             admin.setPassword(HASH);
@@ -290,6 +291,7 @@ class TokenServiceTest {
                     .isInstanceOf(InvalidRequestException.class)
                     .extracting(ex -> ((InvalidRequestException) ex).getStatus())
                     .isEqualTo(400);
+            assertThatThrownBy(() -> tokenService.refreshGrant("   ")).isInstanceOf(InvalidRequestException.class);
             verifyNoInteractions(refreshTokenRepository);
         }
 
@@ -395,65 +397,13 @@ class TokenServiceTest {
 
             assertThat(result.refreshToken()).isNotEqualTo("valid-token");
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Logout
-    // -------------------------------------------------------------------------
-
-    @Nested
-    @DisplayName("logout")
-    class Logout {
 
         @Test
-        @DisplayName("revokes the access token identified by the JWT's jti")
-        void revokesAccessTokenByJti() {
-            AccessTokenEntity at = new AccessTokenEntity();
-            at.setJti("jti-1");
-            at.setUserId(1);
-            when(encodedJwt.getId()).thenReturn("jti-1");
-            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
+        @DisplayName("is transactional so refresh-token locking also works through controller dispatch")
+        void grantToken_isTransactional() throws NoSuchMethodException {
+            Method method = TokenService.class.getMethod("grantToken", GrantRequest.class);
 
-            tokenService.logout(encodedJwt, null);
-
-            assertThat(at.isRevoked()).isTrue();
-            verify(accessTokenRepository).save(at);
-            verifyNoInteractions(refreshTokenRepository);
-        }
-
-        @Test
-        @DisplayName("also revokes the given refresh token when supplied")
-        void revokesRefreshTokenWhenSupplied() {
-            AccessTokenEntity at = new AccessTokenEntity();
-            at.setJti("jti-1");
-            RefreshTokenEntity rt = new RefreshTokenEntity();
-            rt.setTokenValue("refresh-1");
-            when(encodedJwt.getId()).thenReturn("jti-1");
-            when(accessTokenRepository.findByJti("jti-1")).thenReturn(Optional.of(at));
-            when(refreshTokenRepository.findActiveByTokenValue("refresh-1")).thenReturn(Optional.of(rt));
-
-            tokenService.logout(encodedJwt, "refresh-1");
-
-            assertThat(at.isRevoked()).isTrue();
-            assertThat(rt.isRevoked()).isTrue();
-            verify(refreshTokenRepository).save(rt);
-        }
-
-        @Test
-        @DisplayName("is a no-op (does not throw) when the access token is unknown")
-        void unknownAccessToken_doesNotThrow() {
-            when(encodedJwt.getId()).thenReturn("unknown-jti");
-            when(accessTokenRepository.findByJti("unknown-jti")).thenReturn(Optional.empty());
-
-            assertThatCode(() -> tokenService.logout(encodedJwt, null)).doesNotThrowAnyException();
-            verify(accessTokenRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("is a no-op (does not throw) when jwt is null")
-        void nullJwt_doesNotThrow() {
-            assertThatCode(() -> tokenService.logout(null, null)).doesNotThrowAnyException();
-            verifyNoInteractions(accessTokenRepository, refreshTokenRepository);
+            assertThat(method.isAnnotationPresent(Transactional.class)).isTrue();
         }
     }
 }

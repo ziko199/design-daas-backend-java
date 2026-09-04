@@ -1,6 +1,7 @@
 package de.frauas.design.backend.auth.controller;
 
 import de.frauas.design.backend.auth.dto.SessionInfoDto;
+import de.frauas.design.backend.auth.exception.SessionEndpoint;
 import de.frauas.design.backend.auth.exception.SessionException;
 import de.frauas.design.backend.auth.exception.SessionExceptionHandler;
 import de.frauas.design.backend.auth.service.SessionService;
@@ -25,10 +26,17 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@SessionEndpoint
 public class OAuth2SessionController {
 
     private final SessionService sessionService;
 
+    /**
+     * Returns a minimal summary of the currently authenticated user's session.
+     *
+     * @param jwt the caller's authenticated JWT, injected by Spring Security
+     * @return the current user's id and display name
+     */
     @GetMapping("/oauth2/user/session")
     public ResponseEntity<SessionInfoDto> session(@AuthenticationPrincipal Jwt jwt) {
         log.info("GET /oauth2/user/session — checking session for sub={}", jwt != null ? jwt.getSubject() : null);

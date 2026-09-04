@@ -1,6 +1,7 @@
 package de.frauas.design.backend.shared;
 
 import de.frauas.design.backend.shared.dto.ErrorResponse;
+import de.frauas.design.backend.shared.exception.ConflictException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("400 Validation failed: {}", msg);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(msg));
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex) {
+        log.warn("409 Conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

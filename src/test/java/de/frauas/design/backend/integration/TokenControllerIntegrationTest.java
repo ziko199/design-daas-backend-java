@@ -12,8 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,7 +46,6 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
     void setupUser() {
         userRepository.findByEmail(EMAIL).ifPresent(userRepository::delete);
         testUser = new User();
-        testUser.setGuid(UUID.randomUUID().toString());
         testUser.setName("Token Tester");
         testUser.setEmail(EMAIL);
         testUser.setPassword(passwordEncoder.encode(PASSWORD));
@@ -274,7 +271,7 @@ class TokenControllerIntegrationTest extends BaseIntegrationTest {
      * Extracts the {@code jti} claim from the JWT payload (middle base64 segment).
      * Avoids a dependency on a JWT library in tests.
      */
-    private String extractJtiFromJwt(String jwt) throws Exception {
+    private String extractJtiFromJwt(String jwt) {
         String payload = jwt.split("\\.")[1];
         // base64url decode
         byte[] decoded = java.util.Base64.getUrlDecoder().decode(payload);

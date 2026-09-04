@@ -58,14 +58,7 @@ public class UserGroupController {
     }
 
     /**
-     * Updates a user group. Both PUT and PATCH are intentionally mapped to the same
-     * handler: this endpoint always performs a partial (null-safe) update — omitted
-     * fields are left unchanged — regardless of which HTTP method is used.
-     *
-     * <p>Note: stacking {@code @PutMapping} and {@code @PatchMapping} on one method does
-     * NOT work in Spring MVC (only the first {@code @RequestMapping} meta-annotation is
-     * honoured, so PATCH would 405) — {@code @RequestMapping(method = {...})} must be
-     * used instead to register both HTTP methods.</p>
+     * Partially updates a user group — omitted fields are left unchanged.
      *
      * @param id the ID of the group to update
      * @param request fields to change; {@code null} fields are left untouched, a non-null

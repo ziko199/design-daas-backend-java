@@ -8,6 +8,7 @@ import de.frauas.design.backend.user.exception.AccountNotFoundException;
 import de.frauas.design.backend.user.exception.UserNotFoundException;
 import de.frauas.design.backend.user.model.BaseUser;
 import de.frauas.design.backend.user.model.User;
+import de.frauas.design.backend.user.model.UserGroup;
 import de.frauas.design.backend.user.repository.UserGroupRepository;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Core business logic for regular-user registration, verification, and CRUD, plus the
@@ -61,7 +64,6 @@ public class UserService {
         accountValidator.validatePassword(request.getPassword());
         accountValidator.assertEmailAvailable(request.getEmail(), null);
         User user = new User();
-        user.setGuid(UUID.randomUUID().toString());
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -69,7 +71,7 @@ public class UserService {
         user.setRegistrationCode(generateRegistrationCode());
         user.setRegistrationCodeTimeout(LocalDateTime.now().plusHours(REGISTRATION_CODE_TIMEOUT_HOURS));
         if (request.getGroups() != null && !request.getGroups().isEmpty()) {
-            user.setGroups(userGroupRepository.findAllById(request.getGroups()));
+            user.setGroups(loadGroupsOrThrow(request.getGroups()));
         }
         userRepository.save(user);
         log.info("createUser — user created id={} email={}", user.getId(), LogMasking.maskEmail(user.getEmail()));
@@ -150,7 +152,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
         if (request.getGroups() != null) {
-            user.setGroups(userGroupRepository.findAllById(request.getGroups()));
+            user.setGroups(loadGroupsOrThrow(request.getGroups()));
         }
         userRepository.save(user);
         log.info("updateUser — user updated id={}", id);
@@ -217,6 +219,22 @@ public class UserService {
      */
     private User getUserOrThrow(Integer id) {
         return userRepository.findUserById(id).orElseThrow(() -> new UserNotFoundException(id));
+    }
+
+    private List<UserGroup> loadGroupsOrThrow(List<Integer> groupIds) {
+        Set<Integer> requestedGroupIds = new LinkedHashSet<>(groupIds);
+        if (requestedGroupIds.isEmpty()) {
+            return List.of();
+        }
+        List<UserGroup> groups = userGroupRepository.findAllById(requestedGroupIds);
+        Set<Integer> foundIds = groups.stream().map(UserGroup::getId).collect(Collectors.toSet());
+        List<Integer> missingIds =
+                requestedGroupIds.stream().filter(id -> !foundIds.contains(id)).toList();
+        if (!missingIds.isEmpty()) {
+            log.warn("loadGroupsOrThrow — unknown user group ids={}", missingIds);
+            throw new IllegalArgumentException("Unknown user group ids: " + missingIds);
+        }
+        return groups;
     }
 
     private String generateRegistrationCode() {

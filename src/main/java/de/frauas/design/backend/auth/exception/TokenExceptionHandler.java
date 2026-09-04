@@ -1,6 +1,5 @@
 package de.frauas.design.backend.auth.exception;
 
-import de.frauas.design.backend.auth.controller.TokenController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,12 +10,14 @@ import java.util.Map;
 /**
  * Maps any {@link TokenGrantException} thrown by {@code TokenService} to an HTTP response.
  *
- * <p>Scoped to {@link TokenController} only (via {@code assignableTypes}), so it lives
- * next to the exceptions it handles instead of cluttering the app-wide
- * {@code GlobalExceptionHandler} with token-grant-specific error shapes.</p>
+ * <p>Scoped to controllers annotated with {@link TokenEndpoint} (currently only
+ * {@code TokenController}), so it lives next to the exceptions it handles instead of
+ * cluttering the app-wide {@code GlobalExceptionHandler} with token-grant-specific error
+ * shapes. Scoping by annotation (rather than {@code assignableTypes}) keeps this exception
+ * package free of a direct dependency on the controller layer.</p>
  */
 @Slf4j
-@RestControllerAdvice(assignableTypes = TokenController.class)
+@RestControllerAdvice(annotations = TokenEndpoint.class)
 public class TokenExceptionHandler {
 
     /**

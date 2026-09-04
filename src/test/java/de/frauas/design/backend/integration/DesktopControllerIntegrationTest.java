@@ -12,16 +12,17 @@ import java.util.Map;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Integration tests for DesktopController and VersionController.
+ * Integration tests for {@code DesktopController}.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@DisplayName("Desktop + Version Controller Integration")
+@DisplayName("Desktop Controller Integration")
 class DesktopControllerIntegrationTest extends BaseIntegrationTest {
 
     // Spring Boot 4.x removed JacksonAutoConfiguration — ObjectMapper is no longer a Spring bean.
@@ -114,7 +115,7 @@ class DesktopControllerIntegrationTest extends BaseIntegrationTest {
     @Order(8)
     @DisplayName("GET /desktop/{id} – returns desktop for known ID")
     void getDesktopById_known_returns200() throws Exception {
-        if (createdDesktopId == null) return;
+        assertNotNull(createdDesktopId, "Desktop creation test did not produce an ID");
         mockMvc.perform(get("/desktop/" + createdDesktopId).with(adminJwt(999)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdDesktopId));

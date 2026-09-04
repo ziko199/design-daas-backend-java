@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -68,7 +69,6 @@ class UserServiceTest {
     private User makeUser(Integer id, String email, boolean enabled) {
         User u = new User();
         u.setId(id);
-        u.setGuid("guid-" + id);
         u.setName("Test User");
         u.setEmail(email);
         u.setPassword("encoded");
@@ -81,7 +81,6 @@ class UserServiceTest {
     private Admin makeAdmin(Integer id, String email) {
         Admin a = new Admin();
         a.setId(id);
-        a.setGuid("guid-admin-" + id);
         a.setName("Admin User");
         a.setEmail(email);
         a.setPassword("encoded");
@@ -190,7 +189,8 @@ class UserServiceTest {
 
             when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(any())).thenReturn("hashed");
-            when(userGroupRepository.findAllById(List.of(10, 20))).thenReturn(List.of(g1, g2));
+            when(userGroupRepository.findAllById(new LinkedHashSet<>(List.of(10, 20))))
+                    .thenReturn(List.of(g1, g2));
             when(userRepository.save(any())).thenAnswer(inv -> {
                 User u = inv.getArgument(0);
                 u.setId(1);
@@ -200,6 +200,31 @@ class UserServiceTest {
             UserDto dto = userService.createUser(req);
 
             assertThat(dto.getGroups()).containsExactlyInAnyOrder(10, 20);
+        }
+
+        @Test
+        @DisplayName("rejects unknown group IDs instead of silently dropping them")
+        void createUser_unknownGroups_throws() {
+            CreateUserRequest req = new CreateUserRequest();
+            req.setName("Alice");
+            req.setEmail("alice@example.com");
+            req.setPassword("Password1");
+            req.setGroups(List.of(10, 20));
+
+            UserGroup g1 = new UserGroup();
+            g1.setId(10);
+            g1.setName("G1");
+
+            when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
+            when(passwordEncoder.encode("Password1")).thenReturn("hashed");
+            when(userGroupRepository.findAllById(new LinkedHashSet<>(List.of(10, 20))))
+                    .thenReturn(List.of(g1));
+
+            assertThatThrownBy(() -> userService.createUser(req))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unknown user group ids: [20]");
+            verify(userRepository, never()).save(any());
+            verifyNoInteractions(mailService);
         }
     }
 
@@ -413,6 +438,49 @@ class UserServiceTest {
 
             assertThat(dto.getEmail()).isEqualTo("new@e.com");
         }
+
+        @Test
+        @DisplayName("replaces groups when explicit group IDs are provided")
+        void updateUser_groupsProvided_replacesGroups() {
+            User u = makeUser(1, "u@e.com", true);
+            UserGroup g1 = new UserGroup();
+            g1.setId(10);
+            g1.setName("G1");
+            UserGroup g2 = new UserGroup();
+            g2.setId(20);
+            g2.setName("G2");
+            when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
+            when(userGroupRepository.findAllById(new LinkedHashSet<>(List.of(10, 20))))
+                    .thenReturn(List.of(g1, g2));
+            when(userRepository.save(any())).thenReturn(u);
+
+            PatchUserRequest req = new PatchUserRequest();
+            req.setGroups(List.of(10, 20));
+
+            UserDto dto = userService.updateUser(1, req);
+
+            assertThat(dto.getGroups()).containsExactlyInAnyOrder(10, 20);
+        }
+
+        @Test
+        @DisplayName("rejects unknown group IDs during update")
+        void updateUser_unknownGroups_throws() {
+            User u = makeUser(1, "u@e.com", true);
+            UserGroup g1 = new UserGroup();
+            g1.setId(10);
+            g1.setName("G1");
+            when(userRepository.findUserById(1)).thenReturn(Optional.of(u));
+            when(userGroupRepository.findAllById(new LinkedHashSet<>(List.of(10, 20))))
+                    .thenReturn(List.of(g1));
+
+            PatchUserRequest req = new PatchUserRequest();
+            req.setGroups(List.of(10, 20));
+
+            assertThatThrownBy(() -> userService.updateUser(1, req))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unknown user group ids: [20]");
+            verify(userRepository, never()).save(any());
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -445,6 +513,24 @@ class UserServiceTest {
             userService.disableUser(1);
 
             assertThat(u.isEnabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("enableUser throws when the user does not exist")
+        void enableUser_notFound_throws() {
+            when(userRepository.findUserById(99)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.enableUser(99)).isInstanceOf(NoSuchElementException.class);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("disableUser throws when the user does not exist")
+        void disableUser_notFound_throws() {
+            when(userRepository.findUserById(99)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.disableUser(99)).isInstanceOf(NoSuchElementException.class);
+            verify(userRepository, never()).save(any());
         }
     }
 

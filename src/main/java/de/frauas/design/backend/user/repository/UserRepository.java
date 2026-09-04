@@ -19,19 +19,24 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<BaseUser, Integer> {
 
+    /** Finds any account (user or admin) by its unique email address. */
     Optional<BaseUser> findByEmail(String email);
 
-    /** Returns ALL regular users ordered by id — service-layer pagination uses this. */
+    /** Returns all regular users ordered by ID. */
     @Query("SELECT u FROM User u ORDER BY u.id")
     List<User> findAllUsers();
 
+    /** Returns all admin accounts ordered by ID. */
     @Query("SELECT a FROM Admin a ORDER BY a.id")
     List<Admin> findAllAdmins();
 
+    /** Finds a regular user by ID, excluding admins. */
     @Query("SELECT u FROM User u WHERE u.id = :id")
     Optional<User> findUserById(@Param("id") Integer id);
 
     /** Used by PermissionService to fetch the user's group IDs. */
     @Query("SELECT ug.id FROM User u JOIN u.groups ug WHERE u.id = :userId")
     List<Integer> findGroupIdsByUserId(@Param("userId") Integer userId);
+
+    boolean existsByEmail(String email);
 }

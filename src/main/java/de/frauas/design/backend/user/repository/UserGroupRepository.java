@@ -6,8 +6,14 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Data-access for {@link UserGroup} entities. */
+/**
+ * Data-access for {@link UserGroup} entities.
+ */
 @Repository
 public interface UserGroupRepository extends JpaRepository<UserGroup, Integer> {
+
+    /**
+     * Finds a user group by its unique name.
+     */
     Optional<UserGroup> findByName(String name);
 }

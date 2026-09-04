@@ -11,14 +11,13 @@ import de.frauas.design.backend.auth.exception.InvalidRefreshTokenException;
 import de.frauas.design.backend.auth.exception.InvalidRequestException;
 import de.frauas.design.backend.auth.exception.RefreshTokenUserInvalidException;
 import de.frauas.design.backend.auth.model.RefreshTokenEntity;
-import de.frauas.design.backend.auth.repository.AccessTokenRepository;
 import de.frauas.design.backend.auth.repository.RefreshTokenRepository;
+import de.frauas.design.backend.shared.util.LogMasking;
 import de.frauas.design.backend.user.model.BaseUser;
 import de.frauas.design.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,7 +60,6 @@ public class TokenService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final AccessTokenRepository accessTokenRepository;
     private final AccountLockoutService accountLockoutService;
     private final ScopeResolver scopeResolver;
     private final TokenIssuer tokenIssuer;
@@ -84,6 +82,7 @@ public class TokenService {
      *                {@link GrantRequest#of}
      * @return the newly issued access/refresh token pair
      */
+    @Transactional
     public TokenResponseDto grantToken(GrantRequest request) {
         return switch (request) {
             case PasswordGrantRequest r -> passwordGrant(r.username(), r.password(), r.scope());
@@ -102,8 +101,8 @@ public class TokenService {
      */
     @Transactional
     public TokenResponseDto passwordGrant(String username, String password, String scope) {
-        log.debug("passwordGrant — username={}", username);
-        if (username == null || password == null) {
+        log.debug("passwordGrant — username={}", LogMasking.maskEmail(username));
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
             log.warn("passwordGrant — missing username or password");
             throw new InvalidRequestException("username and password are required");
         }
@@ -112,7 +111,7 @@ public class TokenService {
         if (userOpt.isEmpty()) {
             // always run BCrypt to prevent timing-based user enumeration
             passwordEncoder.matches(password, DUMMY_HASH);
-            log.warn("passwordGrant — unknown user={}", username);
+            log.warn("passwordGrant — unknown user={}", LogMasking.maskEmail(username));
             throw new InvalidCredentialsException();
         }
 
@@ -123,12 +122,12 @@ public class TokenService {
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
             accountLockoutService.recordFailedAttempt(user);
-            log.warn("passwordGrant — wrong password user={}", username);
+            log.warn("passwordGrant — wrong password user={}", LogMasking.maskEmail(username));
             throw new InvalidCredentialsException();
         }
 
         if (!user.isEnabled()) {
-            log.warn("passwordGrant — disabled account user={}", username);
+            log.warn("passwordGrant — disabled account user={}", LogMasking.maskEmail(username));
             throw new AccountDisabledException();
         }
 
@@ -142,7 +141,11 @@ public class TokenService {
         String accessToken = tokenIssuer.issueAccessToken(user, grantedScope);
         String newRefreshToken = tokenIssuer.createRefreshToken(user, grantedScope);
 
-        log.info("passwordGrant — issued token for user={} userId={} scope={}", username, user.getId(), grantedScope);
+        log.info(
+                "passwordGrant — issued token for user={} userId={} scope={}",
+                LogMasking.maskEmail(username),
+                user.getId(),
+                grantedScope);
         return buildTokenResponse(accessToken, newRefreshToken, grantedScope);
     }
 
@@ -157,7 +160,7 @@ public class TokenService {
     @Transactional
     public TokenResponseDto refreshGrant(String refreshToken) {
         log.debug("refreshGrant — token=[REDACTED]");
-        if (refreshToken == null) {
+        if (refreshToken == null || refreshToken.isBlank()) {
             log.warn("refreshGrant — missing refresh_token");
             throw new InvalidRequestException("refresh_token is required");
         }
@@ -195,7 +198,10 @@ public class TokenService {
         refreshTokenEntity.revoke();
         refreshTokenRepository.save(refreshTokenEntity);
 
-        log.info("refreshGrant — rotated token for user={} userId={}", user.getEmail(), user.getId());
+        log.info(
+                "refreshGrant — rotated token for user={} userId={}",
+                LogMasking.maskEmail(user.getEmail()),
+                user.getId());
         return buildTokenResponse(newAccessToken, newRefreshToken, grantedScope);
     }
 
@@ -206,51 +212,5 @@ public class TokenService {
     private TokenResponseDto buildTokenResponse(String accessToken, String refreshToken, String scope) {
         return new TokenResponseDto(
                 accessToken, BEARER_TOKEN_TYPE, refreshToken, scope, tokenIssuer.getAccessTokenTtlSeconds());
-    }
-
-    // -------------------------------------------------------------------------
-    // Logout
-    // -------------------------------------------------------------------------
-
-    /**
-     * Revokes the caller's current access token (identified by the JWT's {@code jti}
-     * claim) and, if supplied, the given refresh token — so both stop working
-     * immediately instead of lingering until natural expiry.
-     *
-     * <p>Unlike the grant methods, an invalid/unknown/already-revoked token here is not
-     * treated as an error: logout is idempotent, so a missing {@code jti} or refresh
-     * token record is silently ignored.</p>
-     *
-     * @param jwt          the caller's current access token; may be {@code null} if the
-     *                     request reached this method unauthenticated (defensive only —
-     *                     the security filter chain normally rejects that earlier)
-     * @param refreshToken optional refresh token to revoke alongside the access token
-     */
-    @Transactional
-    public void logout(Jwt jwt, String refreshToken) {
-        if (jwt != null) {
-            String jti = jwt.getId();
-            accessTokenRepository
-                    .findByJti(jti)
-                    .ifPresentOrElse(
-                            accessToken -> {
-                                accessToken.revoke();
-                                accessTokenRepository.save(accessToken);
-                                log.info("logout — revoked access token jti={} userId={}", jti, jwt.getSubject());
-                            },
-                            () -> log.debug("logout — no access token record for jti={}", jti));
-        }
-
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            refreshTokenRepository
-                    .findActiveByTokenValue(refreshToken)
-                    .ifPresentOrElse(
-                            entity -> {
-                                entity.revoke();
-                                refreshTokenRepository.save(entity);
-                                log.info("logout — revoked refresh token userId={}", entity.getUserId());
-                            },
-                            () -> log.debug("logout — refresh token already revoked or unknown"));
-        }
     }
 }

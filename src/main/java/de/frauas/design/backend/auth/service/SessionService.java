@@ -14,8 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
-
 /**
  * Handles {@code GET /oauth2/user/session}: checks that the given JWT is still valid
  * (not revoked) and that the user behind it still exists and is enabled, then returns
@@ -70,11 +68,9 @@ public class SessionService {
             throw new TokenRevokedException();
         }
 
-        Integer userId;
-        try {
-            userId = Integer.parseInt(Objects.requireNonNull(jwt.getSubject()));
-        } catch (NumberFormatException e) {
-            log.warn("getSession — non-numeric token subject={}", jwt.getSubject());
+        Integer userId = parseUserId(jwt.getSubject());
+        if (userId == null) {
+            log.warn("getSession — missing or non-numeric token subject={}", jwt.getSubject());
             throw new UserNotFoundException();
         }
         BaseUser user = userRepository.findById(userId).orElseThrow(() -> {
@@ -99,5 +95,16 @@ public class SessionService {
     private String parseScopeClaim(Jwt jwt) {
         Object scopeClaim = jwt.getClaim("scope");
         return scopeClaim == null ? null : scopeClaim.toString();
+    }
+
+    private Integer parseUserId(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(subject);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

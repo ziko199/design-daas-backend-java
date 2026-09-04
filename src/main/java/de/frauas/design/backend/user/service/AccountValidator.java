@@ -1,19 +1,18 @@
 package de.frauas.design.backend.user.service;
 
 import de.frauas.design.backend.shared.util.LogMasking;
+import de.frauas.design.backend.shared.util.PasswordPolicy;
 import de.frauas.design.backend.user.exception.EmailAlreadyInUseException;
 import de.frauas.design.backend.user.exception.WeakPasswordException;
 import de.frauas.design.backend.user.repository.UserRepository;
-import de.frauas.design.backend.user.validation.PasswordPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Account-creation invariants shared by {@link UserService} and {@link AdminService}:
- * password-strength policy and email uniqueness.
+ * Enforces account-related business rules shared by user and administrator services.
  *
- * <p>Extracted so both services enforce identical rules without duplicating the checks.</p>
+ * <p>Currently validates password strength and email uniqueness.</p>
  */
 @Slf4j
 @Component
@@ -23,10 +22,10 @@ public class AccountValidator {
     private final UserRepository userRepository;
 
     /**
-     * Validates password strength.
+     * Validates the password against the configured password policy.
      *
-     * @param password the plain-text password to check
-     * @throws WeakPasswordException if the password is {@code null} or fails the strength policy
+     * @param password the plain-text password to validate
+     * @throws WeakPasswordException if the password is {@code null} or does not meet the password policy
      */
     public void validatePassword(String password) {
         if (password == null || !password.matches(PasswordPolicy.PASSWORD_REGEX)) {
@@ -36,20 +35,22 @@ public class AccountValidator {
     }
 
     /**
-     * Ensures no other account already uses {@code email}.
+     * Ensures that the email address is not used by another account.
      *
-     * @param email the email to check
-     * @param excludingUserId if non-null, an existing account with this ID is allowed to
-     *     already hold {@code email} (used when a user updates their own record without
-     *     changing their address)
-     * @throws EmailAlreadyInUseException if the email is already registered to a different account
+     * @param email the email address to check
+     * @param excludingUserId the ID of an account allowed to use the email
+     *                        (Update scenario), or {@code null} when creating
+     *                        a new account
+     * @throws EmailAlreadyInUseException if the email is already used
+     *          by another account
      */
     public void assertEmailAvailable(String email, Integer excludingUserId) {
-        userRepository.findByEmail(email).ifPresent(existing -> {
-            if (!existing.getId().equals(excludingUserId)) {
-                log.warn("assertEmailAvailable — email already in use: {}", LogMasking.maskEmail(email));
-                throw new EmailAlreadyInUseException();
-            }
-        });
+        userRepository
+                .findByEmail(email)
+                .filter(existing -> !existing.getId().equals(excludingUserId))
+                .ifPresent(existing -> {
+                    log.warn("assertEmailAvailable — email already in use: {}", LogMasking.maskEmail(email));
+                    throw new EmailAlreadyInUseException();
+                });
     }
 }

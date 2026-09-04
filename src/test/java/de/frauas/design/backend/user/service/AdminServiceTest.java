@@ -42,7 +42,6 @@ class AdminServiceTest {
     private Admin makeAdmin(Integer id, String email) {
         Admin a = new Admin();
         a.setId(id);
-        a.setGuid("guid-admin-" + id);
         a.setName("Admin User");
         a.setEmail(email);
         a.setPassword("encoded");

@@ -15,7 +15,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -55,7 +54,6 @@ class TokenRevocationValidatorTest {
     private User enabledUser(Integer id) {
         User u = new User();
         u.setId(id);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail("u" + id + "@example.com");
         u.setName("User " + id);
         u.setPassword("hash");
@@ -134,6 +132,27 @@ class TokenRevocationValidatorTest {
                 .header("alg", "RS256")
                 .jti("valid-jti")
                 .subject("not-a-number")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+
+        OAuth2TokenValidatorResult result = validator.validate(jwt);
+
+        assertThat(result.hasErrors()).isTrue();
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    @DisplayName("fails when the subject claim is blank")
+    void blankSubject_fails() {
+        AccessTokenEntity entity = new AccessTokenEntity();
+        entity.setJti("valid-jti");
+        when(accessTokenRepository.findByJti("valid-jti")).thenReturn(Optional.of(entity));
+
+        Jwt jwt = Jwt.withTokenValue("token-value")
+                .header("alg", "RS256")
+                .jti("valid-jti")
+                .subject(" ")
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plusSeconds(3600))
                 .build();

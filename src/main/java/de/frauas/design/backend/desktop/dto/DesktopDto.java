@@ -9,6 +9,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * Response payload for {@code Desktop} read endpoints.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,9 +20,15 @@ public class DesktopDto {
     private Integer id;
     private String name;
     private String description;
-    /** IDs of DesktopGroups this desktop belongs to (mirrors PHP desktop_details.groups). */
+
+    /**
+     * IDs of DesktopGroups this desktop belongs to.
+     */
     private List<Integer> groups;
 
+    /**
+     * Maps a {@link Desktop} entity to its API representation.
+     */
     public static DesktopDto from(Desktop d) {
         return DesktopDto.builder()
                 .id(d.getId())

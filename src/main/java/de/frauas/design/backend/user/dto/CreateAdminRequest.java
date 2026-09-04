@@ -1,11 +1,12 @@
 package de.frauas.design.backend.user.dto;
 
-import de.frauas.design.backend.user.validation.PasswordPolicy;
+import de.frauas.design.backend.shared.util.PasswordPolicy;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
+/** Request payload for creating an administrator account. */
 @Data
 public class CreateAdminRequest {
     @NotBlank

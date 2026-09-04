@@ -1,6 +1,5 @@
 package de.frauas.design.backend.auth.exception;
 
-import de.frauas.design.backend.auth.controller.OAuth2SessionController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,12 +10,14 @@ import java.util.Map;
 /**
  * Maps any {@link SessionException} thrown by {@code SessionService} to an HTTP response.
  *
- * <p>Scoped to {@link OAuth2SessionController} only (via {@code assignableTypes}), so it
- * lives next to the exceptions it handles instead of cluttering the app-wide
- * {@code GlobalExceptionHandler} with session-specific error shapes.</p>
+ * <p>Scoped to controllers annotated with {@link SessionEndpoint} (currently only
+ * {@code OAuth2SessionController}), so it lives next to the exceptions it handles instead of
+ * cluttering the app-wide {@code GlobalExceptionHandler} with session-specific error shapes.
+ * Scoping by annotation (rather than {@code assignableTypes}) keeps this exception package free
+ * of a direct dependency on the controller layer.</p>
  */
 @Slf4j
-@RestControllerAdvice(assignableTypes = OAuth2SessionController.class)
+@RestControllerAdvice(annotations = SessionEndpoint.class)
 public class SessionExceptionHandler {
 
     /**

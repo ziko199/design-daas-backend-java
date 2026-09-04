@@ -1,6 +1,7 @@
 package de.frauas.design.backend.shared;
 
 import de.frauas.design.backend.shared.dto.ErrorResponse;
+import de.frauas.design.backend.shared.exception.ConflictException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -45,6 +46,16 @@ class GlobalExceptionHandlerTest {
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().getMessage()).isEqualTo("Access denied");
+    }
+
+    @Test
+    @DisplayName("handleConflict returns 409 with message")
+    void handleConflict_returns409() {
+        ResponseEntity<ErrorResponse> resp = handler.handleConflict(new ConflictException("Already associated"));
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getMessage()).isEqualTo("Already associated");
     }
 
     @Test

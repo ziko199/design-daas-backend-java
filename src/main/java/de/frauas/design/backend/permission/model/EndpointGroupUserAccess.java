@@ -13,6 +13,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Permission rule granting or denying one user access to every endpoint inside
+ * an {@link EndpointGroup} (resolution step 3).
+ */
 @Entity
 @Table(name = "endpoint_group_user_access")
 @Getter

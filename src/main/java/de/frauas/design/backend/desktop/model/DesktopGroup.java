@@ -19,6 +19,10 @@ import lombok.ToString;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A named group of {@link Desktop}s. Access is granted collectively by associating a
+ * {@link de.frauas.design.backend.user.model.UserGroup} with a {@code DesktopGroup}.
+ */
 @Entity
 @Table(name = "desktop_groups")
 @Getter

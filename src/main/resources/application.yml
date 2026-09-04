@@ -37,6 +37,10 @@ spring:
             enable: false
 
 app:
+  admin-initializer:
+    enabled: true
+    email: ${ADMIN_EMAIL:admin@design.local}
+    password: ${ADMIN_PASSWORD:Admin123!}
   oauth2:
     keys-dir: ${OAUTH_KEYS_DIR:./keys}
     issuer: ${OAUTH_ISSUER:http://localhost:8080}
@@ -47,17 +51,22 @@ app:
     from: ${MAIL_FROM:noreply@design.local}
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:${app.frontend.url}}
   rate-limiting:
     enabled: ${RATE_LIMITING_ENABLED:true}
     auth-token-requests-per-minute: ${RATE_LIMIT_AUTH_TOKEN:20}
     register-requests-per-minute: ${RATE_LIMIT_REGISTER:5}
     validate-email-requests-per-minute: ${RATE_LIMIT_VALIDATE_EMAIL:10}
     trusted-proxy-ranges: ${RATE_LIMIT_TRUSTED_PROXIES:127.0.0.1/32,::1/128}
+  security:
+    swagger-public: false
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
+    enabled: true
     path: /swagger-ui.html
 
 logging:
@@ -70,4 +79,4 @@ logging:
     org.hibernate.type.descriptor.sql: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"
-    file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n"

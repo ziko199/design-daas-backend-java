@@ -19,7 +19,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,7 +45,6 @@ class SessionServiceTest {
     private User user(Integer id, boolean enabled) {
         User u = new User();
         u.setId(id);
-        u.setGuid(UUID.randomUUID().toString());
         u.setEmail("user" + id + "@example.com");
         u.setName("User " + id);
         u.setPassword("hash");
@@ -155,5 +153,24 @@ class SessionServiceTest {
                 .satisfies(ex ->
                         assertThat(((MissingTokenException) ex).getStatus()).isEqualTo(401));
         verifyNoInteractions(accessTokenRepository, userRepository);
+    }
+
+    @Test
+    @DisplayName(
+            "throws UserNotFoundException (401) when the subject claim is blank instead of bubbling a parsing failure")
+    void blankSubject_throwsUserNotFound() {
+        Jwt jwt = Jwt.withTokenValue("token-value")
+                .header("alg", "RS256")
+                .jti("valid-jti")
+                .subject(" ")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        AccessTokenEntity entity = new AccessTokenEntity();
+        entity.setJti("valid-jti");
+        when(accessTokenRepository.findByJti("valid-jti")).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> sessionService.getSession(jwt)).isInstanceOf(UserNotFoundException.class);
+        verifyNoInteractions(userRepository);
     }
 }

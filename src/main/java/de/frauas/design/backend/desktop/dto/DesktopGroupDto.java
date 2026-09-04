@@ -9,6 +9,14 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * Request/response payload for {@code DesktopGroup} CRUD endpoints.
+ *
+ * <p>Note: {@code name} is intentionally not annotated with bean-validation constraints
+ * because {@code DesktopGroupController#createDesktopGroup} allows a blank name to fall
+ * back to {@code description}. Emptiness of both fields together is rejected by
+ * {@link de.frauas.design.backend.desktop.service.DesktopService}.</p>
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,6 +27,7 @@ public class DesktopGroupDto {
     private String description;
     private List<Integer> desktopIds;
 
+    /** Maps a {@link DesktopGroup} entity to its API representation. */
     public static DesktopGroupDto from(DesktopGroup g) {
         return DesktopGroupDto.builder()
                 .id(g.getId())

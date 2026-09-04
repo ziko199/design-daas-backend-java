@@ -60,11 +60,9 @@ public class TokenRevocationValidator implements OAuth2TokenValidator<Jwt> {
             return OAuth2TokenValidatorResult.failure(REVOKED_ERROR);
         }
 
-        Integer userId;
-        try {
-            userId = Integer.parseInt(token.getSubject());
-        } catch (NumberFormatException e) {
-            log.warn("TokenRevocationValidator — non-numeric subject={}", token.getSubject());
+        Integer userId = parseUserId(token.getSubject());
+        if (userId == null) {
+            log.warn("TokenRevocationValidator — missing or non-numeric subject={}", token.getSubject());
             return OAuth2TokenValidatorResult.failure(DISABLED_ERROR);
         }
 
@@ -75,5 +73,16 @@ public class TokenRevocationValidator implements OAuth2TokenValidator<Jwt> {
         }
 
         return OAuth2TokenValidatorResult.success();
+    }
+
+    private Integer parseUserId(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(subject);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

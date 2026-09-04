@@ -33,6 +33,9 @@ public sealed interface GrantRequest {
      *                                       {@value #GRANT_TYPE_PASSWORD} nor {@value #GRANT_TYPE_REFRESH_TOKEN}
      */
     static GrantRequest of(String grantType, String username, String password, String refreshToken, String scope) {
+        if (grantType == null || grantType.isBlank()) {
+            throw new UnsupportedGrantTypeException();
+        }
         return switch (grantType) {
             case GRANT_TYPE_PASSWORD -> new PasswordGrantRequest(username, password, scope);
             case GRANT_TYPE_REFRESH_TOKEN -> new RefreshGrantRequest(refreshToken);

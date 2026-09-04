@@ -8,9 +8,19 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configures the OpenAPI specification for the backend API.
+ */
 @Configuration
 public class OpenApiConfig {
 
+    private static final String BEARER_AUTH = "bearerAuth";
+
+    /**
+     * Creates the OpenAPI specification and registers JWT bearer authentication.
+     *
+     * @return configured OpenAPI specification
+     */
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
@@ -18,10 +28,10 @@ public class OpenApiConfig {
                         .title("Design DaaS Backend API")
                         .version("1.0.0")
                         .description("Spring Boot backend replacing the PHP backend"))
-                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
                 .components(new Components()
                         .addSecuritySchemes(
-                                "bearerAuth",
+                                BEARER_AUTH,
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")

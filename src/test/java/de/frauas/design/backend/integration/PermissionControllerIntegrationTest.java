@@ -19,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static de.frauas.design.backend.integration.MockJwt.adminJwt;
 import static de.frauas.design.backend.integration.MockJwt.userJwt;
@@ -60,7 +59,6 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
         // Create test user
         userRepository.findByEmail("perm.test@example.com").ifPresent(userRepository::delete);
         User u = new User();
-        u.setGuid(UUID.randomUUID().toString());
         u.setName("Perm Tester");
         u.setEmail("perm.test@example.com");
         u.setPassword(passwordEncoder.encode("Pass1234!"));
@@ -140,6 +138,33 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(4)
+    @DisplayName("GET /permissions – returns deny when duplicate direct rules conflict")
+    void checkPermission_conflictingDuplicateDirectRules_returnsDeny() throws Exception {
+        EndpointUserAccess allowRule = new EndpointUserAccess();
+        allowRule.setUserId(testUser.getId());
+        allowRule.setEndpoint(testEndpoint);
+        allowRule.setAllowAccess(true);
+        endpointUserAccessRepository.save(allowRule);
+
+        EndpointUserAccess denyRule = new EndpointUserAccess();
+        denyRule.setUserId(testUser.getId());
+        denyRule.setEndpoint(testEndpoint);
+        denyRule.setAllowAccess(false);
+        endpointUserAccessRepository.save(denyRule);
+
+        try {
+            mockMvc.perform(get("/permissions/test_function/" + testUser.getId())
+                            .with(adminJwt(999)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result").value("deny"));
+        } finally {
+            endpointUserAccessRepository.delete(denyRule);
+            endpointUserAccessRepository.delete(allowRule);
+        }
+    }
+
+    @Test
+    @Order(5)
     @DisplayName("GET /permissions – returns 403 with user JWT (not admin)")
     void checkPermission_userJwt_returns403() throws Exception {
         mockMvc.perform(get("/permissions/test_function/" + testUser.getId()).with(userJwt(testUser.getId())))
@@ -147,7 +172,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(5)
+    @Order(6)
     @DisplayName("GET /permissions – returns 401 without authentication")
     void checkPermission_noAuth_returns401() throws Exception {
         mockMvc.perform(get("/permissions/test_function/" + testUser.getId())).andExpect(status().isUnauthorized());
@@ -158,7 +183,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @Order(6)
+    @Order(7)
     @DisplayName("POST /permissions_info – returns deny for authenticated user (default, no rule)")
     void permissionsInfo_authenticated_returnsDeny() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of("function_name", "test_function"));
@@ -172,7 +197,7 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     @DisplayName("POST /permissions_info – returns deny when deny rule set for the JWT user")
     void permissionsInfo_denyRule_returnsDeny() throws Exception {
         EndpointUserAccess rule = new EndpointUserAccess();
@@ -196,7 +221,44 @@ class PermissionControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(8)
+    @Order(9)
+    @DisplayName("POST /permissions_info – returns allow when allow rule set for the JWT user")
+    void permissionsInfo_allowRule_returnsAllow() throws Exception {
+        EndpointUserAccess rule = new EndpointUserAccess();
+        rule.setUserId(testUser.getId());
+        rule.setEndpoint(testEndpoint);
+        rule.setAllowAccess(true);
+        endpointUserAccessRepository.save(rule);
+
+        try {
+            String body = objectMapper.writeValueAsString(Map.of("function_name", "test_function"));
+
+            mockMvc.perform(post("/permissions_info")
+                            .with(userJwt(testUser.getId()))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.result").value("allow"));
+        } finally {
+            endpointUserAccessRepository.delete(rule);
+        }
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("POST /permissions_info – returns 400 when function_name is blank")
+    void permissionsInfo_blankFunctionName_returns400() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("function_name", "   "));
+
+        mockMvc.perform(post("/permissions_info")
+                        .with(userJwt(testUser.getId()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(11)
     @DisplayName("POST /permissions_info – returns 401 without JWT")
     void permissionsInfo_noAuth_returns401() throws Exception {
         String body = objectMapper.writeValueAsString(Map.of("function_name", "test_function"));

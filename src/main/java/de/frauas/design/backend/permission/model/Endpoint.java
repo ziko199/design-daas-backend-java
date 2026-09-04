@@ -10,6 +10,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * A single callable design-daas function that permission rules can target directly
+ * or indirectly through an {@link EndpointGroup}.
+ */
 @Entity
 @Table(name = "endpoints")
 @Getter

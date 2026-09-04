@@ -13,8 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.UUID;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,7 +53,6 @@ class OAuth2SessionControllerIntegrationTest extends BaseIntegrationTest {
     void setupUser() {
         userRepository.findByEmail(EMAIL).ifPresent(userRepository::delete);
         testUser = new User();
-        testUser.setGuid(UUID.randomUUID().toString());
         testUser.setName("Session Tester");
         testUser.setEmail(EMAIL);
         testUser.setPassword(passwordEncoder.encode(PASSWORD));
